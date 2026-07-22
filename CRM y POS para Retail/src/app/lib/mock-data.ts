@@ -1,4 +1,4 @@
-import type { Product, SalesChartData, TopProduct, Sale, Category, Supplier, Movement } from '../types'
+import type { Product, SalesChartData, TopProduct, Sale, Supplier, Movement } from '../types'
 
 export const salesChartData: SalesChartData[] = [
   { dia: 'Lun', ventas: 8420, ganancia: 2100 },

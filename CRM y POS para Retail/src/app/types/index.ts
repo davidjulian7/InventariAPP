@@ -10,59 +10,12 @@ export interface DataAdapter {
   orderBy<T>(table: string, field: string, dir?: 'asc' | 'desc'): T[]
 }
 
-export interface Usuario {
-  id: number
-  usuario: string
-  nombre_completo: string
-  correo: string
-  contraseña: string
-  rol: string
-}
-
 export interface User {
   id: number
   email: string
   nombre: string
   rol: string
   store_id: number
-}
-
-export interface Tienda {
-  id: number
-  nombre: string
-  calle?: string
-  numero?: string
-  codigo_postal?: string
-  colonia?: string
-  ciudad?: string
-  telefono?: string
-  horario_apertura?: string
-  horario_cierre?: string
-  acepta_tarjeta?: boolean
-  fecha_registro?: string
-  usuario_id: number
-}
-
-export interface Producto {
-  id: number
-  nombre: string
-  marca?: string
-  categoria?: string
-  unidad_medida?: string
-  codigo_barras: string
-  descripcion?: string
-  activo?: boolean
-}
-
-export interface Inventario {
-  id: number
-  cantidad: number
-  stock_minimo: number
-  precio_compra: number
-  precio_venta: number
-  fecha_actualizacion?: string
-  tienda_id: number
-  producto_id: number
 }
 
 export interface Product {
@@ -91,23 +44,6 @@ export interface CartItem {
   qty: number
 }
 
-export interface Venta {
-  id: number
-  fecha: string
-  total: number
-  metodo_pago: string
-  tienda_id: number
-}
-
-export interface VentaDetalle {
-  id: number
-  cantidad: number
-  precio_unitario: number
-  subtotal: number
-  venta_id: number
-  producto_id: number
-}
-
 export interface Sale {
   id: number
   folio: string
@@ -128,15 +64,6 @@ export interface SaleItem {
   subtotal: number
 }
 
-export interface Proveedor {
-  id: number
-  nombre: string
-  telefono?: string
-  email?: string
-  direccion?: string
-  contacto?: string
-}
-
 export interface Supplier {
   id: number
   nombre: string
@@ -144,25 +71,6 @@ export interface Supplier {
   telefono: string
   email: string
   direccion: string
-}
-
-export interface Compra {
-  id: number
-  fecha: string
-  total: number
-  numero_factura?: string
-  metodo_pago?: string
-  proveedor_id: number
-  tienda_id: number
-}
-
-export interface CompraDetalle {
-  id: number
-  cantidad: number
-  precio_compra: number
-  subtotal: number
-  compra_id: number
-  producto_id: number
 }
 
 export interface Movement {
@@ -174,39 +82,9 @@ export interface Movement {
   created_at: string
 }
 
-export interface Category {
-  id: number
-  nombre: string
-  color: string
-}
-
-export interface Store {
-  id: number
-  nombre: string
-  rfc: string
-  direccion: string
-  telefono: string
-  email: string
-  logo_url?: string
-}
-
 export interface AIMessage {
   role: 'user' | 'assistant'
   content: string
-}
-
-export interface AIInsight {
-  titulo: string
-  desc: string
-  tipo: 'trending_up' | 'alert' | 'star' | 'zap'
-}
-
-export interface DashboardKPI {
-  title: string
-  value: string
-  subtitle?: string
-  trend?: number
-  accentColor?: boolean
 }
 
 export interface SalesChartData {
