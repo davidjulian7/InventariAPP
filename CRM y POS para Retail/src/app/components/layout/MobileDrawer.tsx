@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router'
 import { ShoppingBag, LogOut, X } from 'lucide-react'
 import { NAV_ITEMS, APP_NAME, DEFAULT_STORE_NAME } from '../../lib/constants'
+import { ConfirmDialog } from '../shared/ConfirmDialog'
 
 export function MobileDrawer({ isOpen, onClose, onLogout }: {
   isOpen: boolean; onClose: () => void; onLogout: () => void
@@ -8,6 +10,7 @@ export function MobileDrawer({ isOpen, onClose, onLogout }: {
   const navigate = useNavigate()
   const location = useLocation()
   const activeModule = location.pathname.slice(1) || 'dashboard'
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
 
   if (!isOpen) return null
 
@@ -41,11 +44,21 @@ export function MobileDrawer({ isOpen, onClose, onLogout }: {
             <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-secondary rounded-full" /><span className="text-white/60 text-xs">Negocio abierto</span></div>
             <div className="text-white text-sm font-bold mt-0.5">$12,450 hoy</div>
           </div>
-          <button onClick={() => { onLogout(); onClose() }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white/45 hover:text-white hover:bg-white/8 text-sm cursor-pointer min-h-[44px] transition-colors">
+          <button onClick={() => setShowLogoutConfirm(true)} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white/45 hover:text-white hover:bg-white/8 text-sm cursor-pointer min-h-[44px] transition-colors">
             <LogOut size={17} />Cerrar sesión
           </button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={showLogoutConfirm}
+        onOpenChange={setShowLogoutConfirm}
+        onConfirm={() => { setShowLogoutConfirm(false); onLogout(); onClose() }}
+        title="Cerrar sesión"
+        description="¿Estás seguro de que deseas cerrar sesión?"
+        confirmText="Salir"
+        destructive
+      />
     </div>
   )
 }

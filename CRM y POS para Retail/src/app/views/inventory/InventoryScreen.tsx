@@ -5,6 +5,7 @@ import { useBreakpoint } from '../../hooks/useBreakpoint'
 import { Btn } from '../../components/shared/Button'
 import { Badge } from '../../components/shared/Badge'
 import { BottomSheet } from '../../components/shared/BottomSheet'
+import { ConfirmDialog } from '../../components/shared/ConfirmDialog'
 import { inventoryProducts } from '../../lib/mock-data'
 
 export function InventoryScreen() {
@@ -13,12 +14,21 @@ export function InventoryScreen() {
   const [view, setView] = useState<'table' | 'cards'>(isMobile ? 'cards' : 'table')
   const [showModal, setShowModal] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
+  const [products, setProducts] = useState(inventoryProducts)
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
 
-  const filtered = inventoryProducts.filter(p =>
+  const filtered = products.filter(p =>
     p.nombre.toLowerCase().includes(search.toLowerCase()) ||
     p.sku.toLowerCase().includes(search.toLowerCase()) ||
     p.categoria.toLowerCase().includes(search.toLowerCase())
   )
+
+  const confirmDelete = () => {
+    if (deleteTarget === null) return
+    setProducts(prev => prev.filter(p => p.id !== deleteTarget))
+    setDeleteTarget(null)
+    toast.success('Producto eliminado')
+  }
 
   const estadoBadge = (e: string) => {
     if (e === 'ok') return <Badge variant="success">En stock</Badge>
@@ -87,7 +97,7 @@ export function InventoryScreen() {
               {isMobile && (
                 <div className="flex gap-2 mt-3 pt-3 border-t border-border/30">
                   <button className="flex-1 py-2 bg-muted rounded-xl text-xs font-semibold text-foreground cursor-pointer min-h-[40px] flex items-center justify-center gap-1"><Edit2 size={12} />Editar</button>
-                  <button className="flex-1 py-2 bg-red-50 rounded-xl text-xs font-semibold text-red-500 cursor-pointer min-h-[40px] flex items-center justify-center gap-1"><Trash2 size={12} />Eliminar</button>
+                  <button onClick={() => setDeleteTarget(p.id)} className="flex-1 py-2 bg-red-50 rounded-xl text-xs font-semibold text-red-500 cursor-pointer min-h-[40px] flex items-center justify-center gap-1"><Trash2 size={12} />Eliminar</button>
                 </div>
               )}
             </div>
@@ -125,7 +135,7 @@ export function InventoryScreen() {
                       <div className="flex items-center justify-center gap-1">
                         <button className="w-7 h-7 rounded-lg bg-muted hover:bg-border flex items-center justify-center cursor-pointer"><Eye size={13} className="text-muted-foreground" /></button>
                         <button className="w-7 h-7 rounded-lg bg-muted hover:bg-border flex items-center justify-center cursor-pointer"><Edit2 size={13} className="text-muted-foreground" /></button>
-                        <button className="w-7 h-7 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center cursor-pointer"><Trash2 size={13} className="text-red-500" /></button>
+                        <button onClick={() => setDeleteTarget(p.id)} className="w-7 h-7 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center cursor-pointer"><Trash2 size={13} className="text-red-500" /></button>
                       </div>
                     </td>
                   </tr>
@@ -188,6 +198,15 @@ export function InventoryScreen() {
           </div>
         </div>
       </BottomSheet>
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={open => !open && setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title="Eliminar producto"
+        description="¿Estás seguro de eliminar este producto? Esta acción no se puede deshacer."
+        confirmText="Eliminar"
+        destructive
+      />
     </div>
   )
 }

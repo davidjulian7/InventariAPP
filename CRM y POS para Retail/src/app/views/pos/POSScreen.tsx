@@ -7,6 +7,7 @@ import { useBarcodeScanner } from '../../hooks/useBarcodeScanner'
 import { BottomSheet } from '../../components/shared/BottomSheet'
 import { Btn } from '../../components/shared/Button'
 import { Badge } from '../../components/shared/Badge'
+import { ConfirmDialog } from '../../components/shared/ConfirmDialog'
 import { posProducts } from '../../lib/mock-data'
 
 const categories = ['Todos', 'Bebidas', 'Lacteos', 'Botanas', 'Abarrotes', 'Panaderia']
@@ -144,6 +145,7 @@ export function POSScreen() {
   const [showCart, setShowCart] = useState(false)
   const [showPayment, setShowPayment] = useState(false)
   const [showScanner, setShowScanner] = useState(false)
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
 
   const { scanning, error: scanError, videoRef, startScanning, stopScanning } = useBarcodeScanner({
     onDetect: (barcode: string) => {
@@ -268,6 +270,16 @@ export function POSScreen() {
             </div>
           </div>
         </BottomSheet>
+
+        <ConfirmDialog
+          open={showClearConfirm}
+          onOpenChange={setShowClearConfirm}
+          onConfirm={() => { clearCart(); setShowClearConfirm(false) }}
+          title="Limpiar carrito"
+          description="¿Estás seguro de vaciar el carrito? Se perderán todos los productos agregados."
+          confirmText="Limpiar"
+          destructive
+        />
       </div>
     )
   }
@@ -324,7 +336,7 @@ export function POSScreen() {
             <div className="flex-1 bg-card rounded-2xl border border-border/50 flex flex-col overflow-hidden shadow-sm">
               <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/50">
                 <h3 className="font-bold text-foreground text-sm">Carrito</h3>
-                {!isEmpty && <button onClick={clearCart} className="text-xs text-red-500 hover:underline cursor-pointer">Limpiar</button>}
+                {!isEmpty && <button onClick={() => setShowClearConfirm(true)} className="text-xs text-red-500 hover:underline cursor-pointer">Limpiar</button>}
               </div>
               <div className="flex-1 overflow-y-auto p-3 space-y-2">
                 <CartItems cart={cart} updateQty={updateQty} empty={isEmpty} />
@@ -352,6 +364,16 @@ export function POSScreen() {
           </div>
         </div>
       </BottomSheet>
+
+      <ConfirmDialog
+        open={showClearConfirm}
+        onOpenChange={setShowClearConfirm}
+        onConfirm={() => { clearCart(); setShowClearConfirm(false) }}
+        title="Limpiar carrito"
+        description="¿Estás seguro de vaciar el carrito? Se perderán todos los productos agregados."
+        confirmText="Limpiar"
+        destructive
+      />
     </div>
   )
 }
