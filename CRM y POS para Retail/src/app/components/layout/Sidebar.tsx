@@ -1,9 +1,14 @@
-import { ShoppingBag, LogOut, PanelLeftClose, PanelLeftOpen, Bot } from 'lucide-react'
+import { useNavigate, useLocation } from 'react-router'
+import { ShoppingBag, LogOut, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { NAV_ITEMS, APP_NAME, DEFAULT_STORE_NAME } from '../../lib/constants'
 
-export function Sidebar({ activeModule, setActiveModule, onLogout, collapsed, onToggleCollapse }: {
-  activeModule: string; setActiveModule: (m: string) => void; onLogout: () => void; collapsed: boolean; onToggleCollapse: () => void
+export function Sidebar({ onLogout, collapsed, onToggleCollapse }: {
+  onLogout: () => void; collapsed: boolean; onToggleCollapse: () => void
 }) {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const activeModule = location.pathname.slice(1) || 'dashboard'
+
   return (
     <aside className={`h-screen bg-foreground flex flex-col shrink-0 transition-all duration-300 ${collapsed ? 'w-16' : 'w-[228px]'}`}>
       <div className={`border-b border-white/8 flex items-center ${collapsed ? 'px-3 py-5 justify-center' : 'px-5 py-5'}`}>
@@ -21,7 +26,7 @@ export function Sidebar({ activeModule, setActiveModule, onLogout, collapsed, on
           const Icon = item.icon
           const isActive = activeModule === item.id
           return (
-            <button key={item.id} onClick={() => setActiveModule(item.id)} title={collapsed ? item.label : undefined}
+            <button key={item.id} onClick={() => navigate('/' + item.id)} title={collapsed ? item.label : undefined}
               className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-all cursor-pointer ${collapsed ? 'px-0 py-3 justify-center' : 'px-3 py-2.5 text-left'} ${isActive ? 'bg-primary text-white shadow-sm' : 'text-white/55 hover:text-white hover:bg-white/8'}`}>
               <Icon size={17} className="shrink-0" />
               {!collapsed && (<><span className="flex-1">{item.label}</span>{item.id === 'ai' && <span className="bg-accent text-foreground text-[10px] px-1.5 py-0.5 rounded-full font-bold">IA</span>}</>)}

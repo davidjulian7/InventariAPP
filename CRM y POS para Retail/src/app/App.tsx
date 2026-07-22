@@ -1,64 +1,55 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router'
 import { useBreakpoint } from './hooks/useBreakpoint'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { CartProvider, useCart } from './contexts/CartContext'
-import { LoginScreen } from './views/auth/LoginScreen'
-import { DashboardScreen } from './views/dashboard/DashboardScreen'
-import { POSScreen } from './views/pos/POSScreen'
-import { InventoryScreen } from './views/inventory/InventoryScreen'
-import { ReportsScreen } from './views/reports/ReportsScreen'
-import { AIAssistantScreen } from './views/ai/AIAssistantScreen'
-import { SettingsScreen } from './views/settings/SettingsScreen'
-import { HelpScreen } from './views/help/HelpScreen'
 import { Sidebar } from './components/layout/Sidebar'
 import { Header } from './components/layout/Header'
 import { BottomNav } from './components/layout/BottomNav'
 import { MobileDrawer } from './components/layout/MobileDrawer'
+import { ProtectedRoute } from './components/shared/ProtectedRoute'
+
+const LoginScreen = lazy(() => import('./views/auth/LoginScreen').then(m => ({ default: m.LoginScreen })))
+const DashboardScreen = lazy(() => import('./views/dashboard/DashboardScreen').then(m => ({ default: m.DashboardScreen })))
+const POSScreen = lazy(() => import('./views/pos/POSScreen').then(m => ({ default: m.POSScreen })))
+const InventoryScreen = lazy(() => import('./views/inventory/InventoryScreen').then(m => ({ default: m.InventoryScreen })))
+const ReportsScreen = lazy(() => import('./views/reports/ReportsScreen').then(m => ({ default: m.ReportsScreen })))
+const AIAssistantScreen = lazy(() => import('./views/ai/AIAssistantScreen').then(m => ({ default: m.AIAssistantScreen })))
+const SettingsScreen = lazy(() => import('./views/settings/SettingsScreen').then(m => ({ default: m.SettingsScreen })))
+const HelpScreen = lazy(() => import('./views/help/HelpScreen').then(m => ({ default: m.HelpScreen })))
+const NotFoundScreen = lazy(() => import('./views/NotFoundScreen').then(m => ({ default: m.NotFoundScreen })))
 
 function AppLayout() {
   const { isMobile } = useBreakpoint()
-  const { isAuthenticated, logout } = useAuth()
+  const { logout } = useAuth()
   const { totalItems } = useCart()
-  const [activeModule, setActiveModule] = useState('dashboard')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-
-  if (!isAuthenticated) return <LoginScreen />
 
   if (isMobile) {
     return (
       <div className="flex flex-col h-screen bg-background">
-        <Header activeModule={activeModule} isMobile onMenuOpen={() => setMobileMenuOpen(true)} />
-        <main className="flex-1 overflow-auto px-4 pt-3 pb-0">
-          {activeModule === 'dashboard' && <DashboardScreen />}
-          {activeModule === 'pos' && <POSScreen />}
-          {activeModule === 'inventory' && <InventoryScreen />}
-          {activeModule === 'reports' && <ReportsScreen />}
-          {activeModule === 'ai' && <AIAssistantScreen />}
-          {activeModule === 'settings' && <SettingsScreen />}
-          {activeModule === 'help' && <HelpScreen />}
+        <Header isMobile onMenuOpen={() => setMobileMenuOpen(true)} />
+        <main className="flex-1 overflow-auto px-4 pt-3 pb-[72px]">
+          <Suspense fallback={<div className="animate-pulse bg-muted rounded-2xl h-40" />}>
+            <Outlet />
+          </Suspense>
         </main>
-        <BottomNav activeModule={activeModule} setActiveModule={setActiveModule} cartCount={totalItems} />
-        <MobileDrawer isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)}
-          activeModule={activeModule} setActiveModule={setActiveModule} onLogout={logout} />
+        <BottomNav cartCount={totalItems} />
+        <MobileDrawer isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} onLogout={logout} />
       </div>
     )
   }
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
-      <Sidebar activeModule={activeModule} setActiveModule={setActiveModule} onLogout={logout}
-        collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} />
+      <Sidebar onLogout={logout} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} />
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <Header activeModule={activeModule} isMobile={false} onMenuOpen={() => {}} />
+        <Header isMobile={false} onMenuOpen={() => {}} />
         <main className="flex-1 overflow-auto px-5 pt-5">
-          {activeModule === 'dashboard' && <DashboardScreen />}
-          {activeModule === 'pos' && <POSScreen />}
-          {activeModule === 'inventory' && <InventoryScreen />}
-          {activeModule === 'reports' && <ReportsScreen />}
-          {activeModule === 'ai' && <AIAssistantScreen />}
-          {activeModule === 'settings' && <SettingsScreen />}
-          {activeModule === 'help' && <HelpScreen />}
+          <Suspense fallback={<div className="animate-pulse bg-muted rounded-2xl h-40" />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
     </div>
@@ -67,10 +58,35 @@ function AppLayout() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <CartProvider>
-        <AppLayout />
-      </CartProvider>
-    </AuthProvider>
+    <BrowserRouter>
+      <AuthProvider>
+        <CartProvider>
+          <Routes>
+            <Route path="/login" element={
+              <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" /></div>}>
+                <LoginScreen />
+              </Suspense>
+            } />
+            <Route element={<ProtectedRoute />}>
+              <Route element={<AppLayout />}>
+                <Route index element={<Navigate to="/dashboard" replace />} />
+                <Route path="dashboard" element={<DashboardScreen />} />
+                <Route path="pos" element={<POSScreen />} />
+                <Route path="inventory" element={<InventoryScreen />} />
+                <Route path="reports" element={<ReportsScreen />} />
+                <Route path="ai" element={<AIAssistantScreen />} />
+                <Route path="settings" element={<SettingsScreen />} />
+                <Route path="help" element={<HelpScreen />} />
+              </Route>
+            </Route>
+            <Route path="*" element={
+              <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" /></div>}>
+                <NotFoundScreen />
+              </Suspense>
+            } />
+          </Routes>
+        </CartProvider>
+      </AuthProvider>
+    </BrowserRouter>
   )
 }

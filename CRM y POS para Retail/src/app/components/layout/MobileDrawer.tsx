@@ -1,9 +1,14 @@
-import { ShoppingBag, LogOut, X, Bot } from 'lucide-react'
+import { useNavigate, useLocation } from 'react-router'
+import { ShoppingBag, LogOut, X } from 'lucide-react'
 import { NAV_ITEMS, APP_NAME, DEFAULT_STORE_NAME } from '../../lib/constants'
 
-export function MobileDrawer({ isOpen, onClose, activeModule, setActiveModule, onLogout }: {
-  isOpen: boolean; onClose: () => void; activeModule: string; setActiveModule: (m: string) => void; onLogout: () => void
+export function MobileDrawer({ isOpen, onClose, onLogout }: {
+  isOpen: boolean; onClose: () => void; onLogout: () => void
 }) {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const activeModule = location.pathname.slice(1) || 'dashboard'
+
   if (!isOpen) return null
 
   return (
@@ -22,7 +27,7 @@ export function MobileDrawer({ isOpen, onClose, activeModule, setActiveModule, o
             const Icon = item.icon
             const isActive = activeModule === item.id
             return (
-              <button key={item.id} onClick={() => { setActiveModule(item.id); onClose() }}
+              <button key={item.id} onClick={() => { navigate('/' + item.id); onClose() }}
                 className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium cursor-pointer text-left min-h-[52px] transition-colors ${isActive ? 'bg-primary text-white' : 'text-white/60 hover:text-white hover:bg-white/8'}`}>
                 <Icon size={18} />
                 <span className="flex-1">{item.label}</span>

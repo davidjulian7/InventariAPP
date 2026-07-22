@@ -1,10 +1,12 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router'
 import { ShoppingBag, TrendingUp, ArrowUpRight, Sparkles, RefreshCw } from 'lucide-react'
 import { useBreakpoint } from '../../hooks/useBreakpoint'
 import { useAuth } from '../../contexts/AuthContext'
 import { APP_NAME } from '../../lib/constants'
 
 export function LoginScreen() {
+  const navigate = useNavigate()
   const { isMobile } = useBreakpoint()
   const { login } = useAuth()
   const [email, setEmail] = useState('admin@elroble.mx')
@@ -18,6 +20,7 @@ export function LoginScreen() {
     setError('')
     try {
       await login(email, password)
+      navigate('/dashboard')
     } catch (err: any) {
       setError(err.message || 'Error al iniciar sesión')
     } finally {

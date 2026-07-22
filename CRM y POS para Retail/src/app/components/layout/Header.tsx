@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useLocation } from 'react-router'
 import { Search, Bell, X, Menu, ShoppingBag, ChevronDown } from 'lucide-react'
 import { NAV_ITEMS } from '../../lib/constants'
 
@@ -6,7 +7,9 @@ const moduleTitles: Record<string, string> = Object.fromEntries(
   NAV_ITEMS.map(n => [n.id, n.label])
 )
 
-export function Header({ activeModule, isMobile, onMenuOpen }: { activeModule: string; isMobile: boolean; onMenuOpen: () => void }) {
+export function Header({ isMobile, onMenuOpen }: { isMobile: boolean; onMenuOpen: () => void }) {
+  const location = useLocation()
+  const activeModule = location.pathname.slice(1) || 'dashboard'
   const [showSearch, setShowSearch] = useState(false)
 
   if (isMobile) {

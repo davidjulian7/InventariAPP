@@ -1,10 +1,13 @@
+import { useNavigate, useLocation } from 'react-router'
 import { NAV_ITEMS } from '../../lib/constants'
 
 const bottomNavItems = NAV_ITEMS.slice(0, 5)
 
-export function BottomNav({ activeModule, setActiveModule, cartCount = 0 }: {
-  activeModule: string; setActiveModule: (m: string) => void; cartCount?: number
-}) {
+export function BottomNav({ cartCount = 0 }: { cartCount?: number }) {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const activeModule = location.pathname.slice(1) || 'dashboard'
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-card border-t border-border">
       <div className="flex items-center">
@@ -12,7 +15,7 @@ export function BottomNav({ activeModule, setActiveModule, cartCount = 0 }: {
           const Icon = item.icon
           const isActive = activeModule === item.id
           return (
-            <button key={item.id} onClick={() => setActiveModule(item.id)}
+            <button key={item.id} onClick={() => navigate('/' + item.id)}
               className={`flex-1 flex flex-col items-center gap-1 py-2.5 min-h-[64px] relative cursor-pointer transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
               <div className="relative">
                 <Icon size={22} strokeWidth={isActive ? 2.5 : 1.8} />
