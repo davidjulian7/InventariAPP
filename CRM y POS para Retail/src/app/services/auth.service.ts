@@ -1,12 +1,12 @@
-import { localDb } from '../lib/db'
+import { db } from '../lib/data'
 import type { User } from '../types'
 
 export class AuthService {
   static async login(email: string, password: string): Promise<User | null> {
-    const users = localDb.query<any>('usuarios', (u: any) => u.correo === email && u.contraseña === password)
+    const users = db.query<any>('usuarios', (u: any) => u.correo === email && u.contraseña === password)
     if (users.length === 0) return null
     const u = users[0]
-    const tiendas = localDb.query<any>('tienda', (t: any) => t.usuario_id === u.id)
+    const tiendas = db.query<any>('tienda', (t: any) => t.usuario_id === u.id)
     return {
       id: u.id,
       email: u.correo,
@@ -30,10 +30,10 @@ export class AuthService {
   }
 
   static async register(email: string, password: string, nombre: string): Promise<User | null> {
-    const existing = localDb.query<any>('usuarios', (u: any) => u.correo === email)
+    const existing = db.query<any>('usuarios', (u: any) => u.correo === email)
     if (existing.length > 0) throw new Error('El usuario ya existe')
 
-    const newUser = localDb.insert('usuarios', { usuario: nombre, nombre_completo: nombre, correo: email, contraseña: password, rol: 'admin' })
+    const newUser = db.insert('usuarios', { usuario: nombre, nombre_completo: nombre, correo: email, contraseña: password, rol: 'admin' })
     return {
       id: newUser.id,
       email: newUser.correo,

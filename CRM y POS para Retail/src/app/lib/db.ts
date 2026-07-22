@@ -1,3 +1,5 @@
+import type { DataAdapter } from '../types'
+
 const DB_PREFIX = 'inventari_'
 
 function getTable<T>(name: string): T[] {
@@ -18,7 +20,7 @@ function nextId(table: string): number {
   return rows.length > 0 ? Math.max(...rows.map((r: any) => r.id)) + 1 : 1
 }
 
-export const localDb = {
+export const localStorageAdapter: DataAdapter = {
   getAll<T>(table: string): T[] {
     return getTable<T>(table)
   },
@@ -28,7 +30,7 @@ export const localDb = {
     return rows.find(r => r.id === id) || null
   },
 
-  insert<T extends { id: number }>(table: string, data: any): T {
+  insert<T>(table: string, data: any): T {
     const rows = getTable<T>(table)
     const id = nextId(table)
     const now = new Date().toISOString()
@@ -38,7 +40,7 @@ export const localDb = {
     return row
   },
 
-  update<T extends { id: number }>(table: string, id: number, data: Partial<T>): T {
+  update<T>(table: string, id: number, data: Partial<T>): T {
     const rows = getTable<any>(table)
     const idx = rows.findIndex(r => r.id === id)
     if (idx === -1) throw new Error(`Row ${id} not found in ${table}`)
@@ -60,9 +62,9 @@ export const localDb = {
     return getTable(table).length
   },
 
-  search<T extends Record<string, any>>(table: string, field: string, value: string): T[] {
+  search<T>(table: string, field: string, value: string): T[] {
     return getTable<T>(table).filter(r =>
-      String(r[field]).toLowerCase().includes(value.toLowerCase())
+      String((r as any)[field]).toLowerCase().includes(value.toLowerCase())
     )
   },
 

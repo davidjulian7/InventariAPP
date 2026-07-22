@@ -1,9 +1,9 @@
-import { localDb } from '../lib/db'
+import { db } from '../lib/data'
 import type { Supplier } from '../types'
 
 export class SupplierService {
   static async getAll(storeId: number): Promise<Supplier[]> {
-    const proveedores = localDb.getAll<any>('proveedor')
+    const proveedores = db.getAll<any>('proveedor')
     return proveedores
       .sort((a: any, b: any) => a.nombre.localeCompare(b.nombre))
       .map((p: any) => ({
@@ -17,7 +17,7 @@ export class SupplierService {
   }
 
   static async create(supplier: Partial<Supplier>): Promise<Supplier> {
-    const p = localDb.insert('proveedor', {
+    const p = db.insert('proveedor', {
       nombre: supplier.nombre,
       contacto: supplier.contacto,
       telefono: supplier.telefono,
@@ -35,7 +35,7 @@ export class SupplierService {
   }
 
   static async update(id: number, supplier: Partial<Supplier>): Promise<Supplier> {
-    const p = localDb.update('proveedor', id, {
+    const p = db.update('proveedor', id, {
       nombre: supplier.nombre,
       contacto: supplier.contacto,
       telefono: supplier.telefono,
@@ -53,6 +53,6 @@ export class SupplierService {
   }
 
   static async delete(id: number): Promise<void> {
-    localDb.remove('proveedor', id)
+    db.remove('proveedor', id)
   }
 }

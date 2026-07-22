@@ -1,3 +1,15 @@
+export interface DataAdapter {
+  getAll<T>(table: string): T[]
+  getById<T extends { id: number }>(table: string, id: number): T | null
+  insert<T>(table: string, data: any): T
+  update<T>(table: string, id: number, data: Partial<T>): T
+  remove(table: string, id: number): void
+  query<T>(table: string, fn: (item: T) => boolean): T[]
+  count(table: string): number
+  search<T>(table: string, field: string, value: string): T[]
+  orderBy<T>(table: string, field: string, dir?: 'asc' | 'desc'): T[]
+}
+
 export interface Usuario {
   id: number
   usuario: string

@@ -1,4 +1,4 @@
-import { localDb } from '../lib/db'
+import { db } from '../lib/data'
 import type { AIMessage } from '../types'
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || ''
@@ -10,14 +10,14 @@ Analizas datos de ventas, inventario y proveedores para dar recomendaciones acci
 Sé conciso, práctico y directo. Tus respuestas deben ser cortas (máximo 3 párrafos).`
 
 function buildContext(storeId: number): string {
-  const invs = localDb.query<any>('inventario', (i: any) => i.tienda_id === storeId)
+  const invs = db.query<any>('inventario', (i: any) => i.tienda_id === storeId)
   const productos = invs.map((i: any) => {
-    const p = localDb.getById<any>('producto', i.producto_id)
+    const p = db.getById<any>('producto', i.producto_id)
     return p ? { ...p, cantidad: i.cantidad, stock_minimo: i.stock_minimo, precio_venta: i.precio_venta } : null
   }).filter(Boolean)
 
   const lowStock = productos.filter((p: any) => p.cantidad < p.stock_minimo)
-  const ventas = localDb.getAll<any>('venta').filter((v: any) => v.tienda_id === storeId)
+  const ventas = db.getAll<any>('venta').filter((v: any) => v.tienda_id === storeId)
   const totalSales = ventas.reduce((sum: number, v: any) => sum + Number(v.total), 0)
 
   return `Contexto actual de la tienda:
@@ -87,11 +87,11 @@ export class AIService {
   }
 
   static async getRestockSuggestions(storeId: number): Promise<{ producto: string; prioridad: string; razon: string }[]> {
-    const invs = localDb.query<any>('inventario', (i: any) =>
+    const invs = db.query<any>('inventario', (i: any) =>
       i.tienda_id === storeId && i.cantidad <= i.stock_minimo
     )
     const suggestions = invs.map((i: any) => {
-      const p = localDb.getById<any>('producto', i.producto_id)
+      const p = db.getById<any>('producto', i.producto_id)
       return {
         producto: p ? p.nombre : `Producto #${i.producto_id}`,
         prioridad: i.cantidad === 0 ? 'alta' : i.cantidad < i.stock_minimo / 2 ? 'media' : 'baja',
@@ -107,9 +107,9 @@ export class AIService {
   }
 
   static async saveChat(userId: number, title: string, messages: AIMessage[]) {
-    const chat = localDb.insert('ai_chats', { title, user_id: userId })
+    const chat = db.insert('ai_chats', { title, user_id: userId })
     for (const m of messages) {
-      localDb.insert('ai_messages', {
+      db.insert('ai_messages', {
         chat_id: chat.id,
         role: m.role,
         content: m.content,
@@ -119,12 +119,12 @@ export class AIService {
   }
 
   static async getChatHistory(userId: number) {
-    const chats = localDb.query<any>('ai_chats', (c: any) => c.user_id === userId)
+    const chats = db.query<any>('ai_chats', (c: any) => c.user_id === userId)
       .sort((a: any, b: any) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
 
     return chats.map((chat: any) => ({
       ...chat,
-      messages: localDb.query<any>('ai_messages', (m: any) => m.chat_id === chat.id),
+      messages: db.query<any>('ai_messages', (m: any) => m.chat_id === chat.id),
     }))
   }
 }

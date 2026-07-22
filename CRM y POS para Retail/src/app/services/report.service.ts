@@ -1,4 +1,4 @@
-import { localDb } from '../lib/db'
+import { db } from '../lib/data'
 import type { TopProduct, SalesChartData } from '../types'
 
 export class ReportService {
@@ -7,7 +7,7 @@ export class ReportService {
     const startDate = new Date()
     startDate.setDate(startDate.getDate() - days)
 
-    const ventas = localDb.query<any>('venta', (v: any) =>
+    const ventas = db.query<any>('venta', (v: any) =>
       v.tienda_id === storeId &&
       (v.fecha || v.created_at) >= startDate.toISOString() &&
       (v.fecha || v.created_at) <= endDate.toISOString()
@@ -39,14 +39,14 @@ export class ReportService {
   }
 
   static async getTopProducts(storeId: number, limit = 5): Promise<TopProduct[]> {
-    const ventaDetalles = localDb.getAll<any>('venta_detalle')
-    const ventas = localDb.getAll<any>('venta').filter((v: any) => v.tienda_id === storeId)
+    const ventaDetalles = db.getAll<any>('venta_detalle')
+    const ventas = db.getAll<any>('venta').filter((v: any) => v.tienda_id === storeId)
     const ventaIds = new Set(ventas.map((v: any) => v.id))
     const items = ventaDetalles.filter((d: any) => ventaIds.has(d.venta_id))
 
     const grouped: Record<string, TopProduct> = {}
     for (const item of items) {
-      const prod = localDb.getById<any>('producto', item.producto_id)
+      const prod = db.getById<any>('producto', item.producto_id)
       const name = prod ? prod.nombre : `Producto #${item.producto_id}`
       if (!grouped[name]) {
         grouped[name] = { nombre: name, ventas: 0, ingresos: 0, margen: 0 }
@@ -61,7 +61,7 @@ export class ReportService {
   }
 
   static async getTotalSales(storeId: number, startDate: string, endDate: string): Promise<number> {
-    const ventas = localDb.query<any>('venta', (v: any) =>
+    const ventas = db.query<any>('venta', (v: any) =>
       v.tienda_id === storeId &&
       (v.fecha || v.created_at) >= startDate &&
       (v.fecha || v.created_at) <= endDate
@@ -70,7 +70,7 @@ export class ReportService {
   }
 
   static async getSalesCount(storeId: number, startDate: string, endDate: string): Promise<number> {
-    return localDb.query<any>('venta', (v: any) =>
+    return db.query<any>('venta', (v: any) =>
       v.tienda_id === storeId &&
       (v.fecha || v.created_at) >= startDate &&
       (v.fecha || v.created_at) <= endDate
