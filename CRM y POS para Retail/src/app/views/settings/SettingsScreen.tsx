@@ -1,14 +1,53 @@
 import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { toast } from 'sonner'
 import { Building2, Users, CreditCard, Bot, Printer, Bell, Zap, ChevronDown } from 'lucide-react'
 import { useBreakpoint } from '../../hooks/useBreakpoint'
 import { Btn } from '../../components/shared/Button'
+
+const settingsSchema = z.object({
+  nombre: z.string().min(1, 'El nombre del negocio es requerido'),
+  rfc: z.string().optional(),
+  direccion: z.string().min(1, 'La dirección es requerida'),
+  telefono: z.string().optional(),
+  email: z.string().email('Ingresa un correo válido'),
+  web: z.string().optional(),
+})
+
+type SettingsForm = z.infer<typeof settingsSchema>
+
+const formFields: { name: keyof SettingsForm; label: string; full: boolean }[] = [
+  { name: 'nombre', label: 'Nombre del negocio', full: false },
+  { name: 'rfc', label: 'RFC / Registro fiscal', full: false },
+  { name: 'direccion', label: 'Direccion completa', full: true },
+  { name: 'telefono', label: 'Telefono', full: false },
+  { name: 'email', label: 'Correo electronico', full: false },
+  { name: 'web', label: 'Sitio web', full: false },
+]
 
 export function SettingsScreen() {
   const { isMobile } = useBreakpoint()
   const [activeTab, setActiveTab] = useState('negocio')
   const [notifications, setNotifications] = useState([true, true, false, true])
   const [openSection, setOpenSection] = useState<string | null>('datos')
+
+  const { register, handleSubmit, formState: { errors } } = useForm<SettingsForm>({
+    resolver: zodResolver(settingsSchema),
+    defaultValues: {
+      nombre: 'Abarrotes El Roble',
+      rfc: 'AERL850312X01',
+      direccion: 'Calle Principal 45, Col. Centro, CDMX 06000',
+      telefono: '55-1234-5678',
+      email: 'contacto@elroble.mx',
+      web: 'www.elroble.mx',
+    },
+  })
+
+  const onSubmit = (_data: SettingsForm) => {
+    toast.success('Cambios guardados correctamente')
+  }
 
   const tabs = [
     { id: 'negocio', label: 'Mi negocio', icon: Building2 },
@@ -18,14 +57,9 @@ export function SettingsScreen() {
     { id: 'tickets', label: 'Tickets', icon: Printer },
   ]
 
-  const formFields = [
-    { label: 'Nombre del negocio', value: 'Abarrotes El Roble', full: false },
-    { label: 'RFC / Registro fiscal', value: 'AERL850312X01', full: false },
-    { label: 'Direccion completa', value: 'Calle Principal 45, Col. Centro, CDMX 06000', full: true },
-    { label: 'Telefono', value: '55-1234-5678', full: false },
-    { label: 'Correo electronico', value: 'contacto@elroble.mx', full: false },
-    { label: 'Sitio web', value: 'www.elroble.mx', full: false },
-  ]
+  const inputClass = (hasError: boolean) =>
+    'w-full px-3 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all ' +
+    (hasError ? 'border-red-300 bg-red-50' : 'border-border bg-muted')
 
   function NotifToggles() {
     return (
@@ -43,20 +77,32 @@ export function SettingsScreen() {
     )
   }
 
+  function FormFields({ mobile }: { mobile?: boolean }) {
+    const py = mobile ? 'py-3 min-h-[48px]' : 'py-2.5'
+    return (
+      <>
+        {formFields.map(f => {
+          const err = errors[f.name]
+          return (
+            <div key={f.name} className={f.full ? 'col-span-2' : ''}>
+              <label className="block text-xs font-bold text-muted-foreground mb-1.5">{f.label}</label>
+              <input {...register(f.name)} className={inputClass(!!err) + ' ' + py} />
+              {err && <p className="text-xs text-red-500 mt-1">{err.message}</p>}
+            </div>
+          )
+        })}
+      </>
+    )
+  }
+
   if (isMobile) {
     const sections = [
       {
         id: 'datos', title: 'Datos del negocio', Icon: Building2, content: (
-          <div className="space-y-4">
-            {formFields.map(f => (
-              <div key={f.label}>
-                <label className="block text-xs font-bold text-muted-foreground mb-1.5">{f.label}</label>
-                <input defaultValue={f.value}
-                  className="w-full px-3 py-3 rounded-xl border border-border bg-muted text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 min-h-[48px]" />
-              </div>
-            ))}
-            <Btn variant="primary" className="w-full min-h-[52px]" onClick={() => toast.success('Cambios guardados correctamente')}>Guardar cambios</Btn>
-          </div>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <FormFields mobile />
+            <Btn type="submit" variant="primary" className="w-full min-h-[52px]">Guardar cambios</Btn>
+          </form>
         )
       },
       { id: 'notif', title: 'Notificaciones', Icon: Bell, content: <NotifToggles /> },
@@ -117,19 +163,16 @@ export function SettingsScreen() {
         </div>
       </div>
       <div className="flex-1 space-y-5">
-        <div className="bg-card rounded-2xl border border-border/50 p-6 shadow-sm">
+        <form onSubmit={handleSubmit(onSubmit)} className="bg-card rounded-2xl border border-border/50 p-6 shadow-sm">
           <h2 className="text-base font-bold text-foreground mb-5">Datos del negocio</h2>
           <div className="grid grid-cols-2 gap-4">
-            {formFields.map(f => (
-              <div key={f.label} className={f.full ? 'col-span-2' : ''}>
-                <label className="block text-xs font-bold text-muted-foreground mb-1.5">{f.label}</label>
-                <input defaultValue={f.value}
-                  className="w-full px-3 py-2.5 rounded-xl border border-border bg-muted text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
-              </div>
-            ))}
+            <FormFields />
           </div>
-          <div className="mt-5 flex gap-3"><Btn variant="primary" onClick={() => toast.success('Cambios guardados correctamente')}>Guardar cambios</Btn><Btn variant="ghost">Cancelar</Btn></div>
-        </div>
+          <div className="mt-5 flex gap-3">
+            <Btn type="submit" variant="primary">Guardar cambios</Btn>
+            <Btn type="button" variant="ghost">Cancelar</Btn>
+          </div>
+        </form>
         <div className="bg-card rounded-2xl border border-border/50 p-6 shadow-sm">
           <h2 className="text-base font-bold text-foreground mb-5">Notificaciones</h2>
           <NotifToggles />

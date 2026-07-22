@@ -1,4 +1,7 @@
 import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { toast } from 'sonner'
 import { Search, Plus, Filter, Package2, Edit2, Trash2, Eye, AlertTriangle, XCircle, Package, X } from 'lucide-react'
 import { useBreakpoint } from '../../hooks/useBreakpoint'
@@ -8,6 +11,19 @@ import { BottomSheet } from '../../components/shared/BottomSheet'
 import { ConfirmDialog } from '../../components/shared/ConfirmDialog'
 import { inventoryProducts } from '../../lib/mock-data'
 
+const productSchema = z.object({
+  nombre: z.string().min(1, 'El nombre es requerido'),
+  sku: z.string().min(1, 'El SKU es requerido'),
+  codigo_barras: z.string().optional(),
+  categoria: z.string().min(1, 'La categoría es requerida'),
+  precio_compra: z.coerce.number().min(0, 'Debe ser 0 o mayor'),
+  precio_venta: z.coerce.number().min(0, 'Debe ser 0 o mayor'),
+  existencia: z.coerce.number().min(0, 'Debe ser 0 o mayor'),
+  stock_min: z.coerce.number().min(0, 'Debe ser 0 o mayor'),
+})
+
+type ProductForm = z.infer<typeof productSchema>
+
 export function InventoryScreen() {
   const { isMobile } = useBreakpoint()
   const [search, setSearch] = useState('')
@@ -16,6 +32,12 @@ export function InventoryScreen() {
   const [showFilters, setShowFilters] = useState(false)
   const [products, setProducts] = useState(inventoryProducts)
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null)
+  const [nextId, setNextId] = useState(inventoryProducts.length + 1)
+
+  const form = useForm<ProductForm>({
+    resolver: zodResolver(productSchema),
+    defaultValues: { nombre: '', sku: '', codigo_barras: '', categoria: '', precio_compra: 0, precio_venta: 0, existencia: 0, stock_min: 0 },
+  })
 
   const filtered = products.filter(p =>
     p.nombre.toLowerCase().includes(search.toLowerCase()) ||
@@ -28,6 +50,21 @@ export function InventoryScreen() {
     setProducts(prev => prev.filter(p => p.id !== deleteTarget))
     setDeleteTarget(null)
     toast.success('Producto eliminado')
+  }
+
+  const onSubmitProduct = (data: ProductForm) => {
+    const margen = data.precio_venta > 0 ? ((data.precio_venta - data.precio_compra) / data.precio_venta) * 100 : 0
+    const estado = data.existencia === 0 ? 'agotado' as const : data.existencia < data.stock_min ? 'bajo' as const : 'ok' as const
+    setProducts(prev => [...prev, { id: nextId, ...data, codigo_barras: data.codigo_barras || '', margen, estado }])
+    setNextId(prev => prev + 1)
+    form.reset()
+    setShowModal(false)
+    toast.success('Producto guardado exitosamente')
+  }
+
+  const handleOpenAddModal = () => {
+    form.reset()
+    setShowModal(true)
   }
 
   const estadoBadge = (e: string) => {
@@ -70,7 +107,7 @@ export function InventoryScreen() {
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${view === 'cards' ? 'bg-primary text-white' : 'text-muted-foreground'}`}>Tarjetas</button>
             </div>
           )}
-          <Btn variant="primary" size="md" onClick={() => setShowModal(true)}><Plus size={15} />{!isMobile && 'Agregar'}</Btn>
+          <Btn variant="primary" size="md" onClick={handleOpenAddModal}><Plus size={15} />{!isMobile && 'Agregar'}</Btn>
         </div>
       </div>
 
@@ -172,31 +209,35 @@ export function InventoryScreen() {
         </div>
       </BottomSheet>
 
-      <BottomSheet isOpen={showModal} onClose={() => setShowModal(false)} title="Agregar producto" fullHeight>
-        <div className="p-4">
+      <BottomSheet isOpen={showModal} onClose={() => { form.reset(); setShowModal(false) }} title="Agregar producto" fullHeight>
+        <form onSubmit={form.handleSubmit(onSubmitProduct)} className="p-4">
           <div className="grid grid-cols-2 gap-4">
-            {[
-              { label: 'Nombre del producto', placeholder: 'Coca-Cola 600ml', full: true },
-              { label: 'SKU / Codigo', placeholder: 'BEB-001' },
-              { label: 'Codigo de barras', placeholder: '7501055300231' },
-              { label: 'Categoria', placeholder: 'Bebidas' },
-              { label: 'Precio compra ($)', placeholder: '0.00' },
-              { label: 'Precio venta ($)', placeholder: '0.00' },
-              { label: 'Stock actual', placeholder: '0' },
-              { label: 'Stock minimo', placeholder: '10' }
-            ].map(f => (
-              <div key={f.label} className={f.full ? 'col-span-2' : ''}>
-                <label className="block text-xs font-semibold text-muted-foreground mb-1.5">{f.label}</label>
-                <input placeholder={f.placeholder}
-                  className="w-full px-3 py-3 rounded-xl border border-border bg-muted text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 min-h-[48px]" />
-              </div>
-            ))}
+            {([
+              { name: 'nombre' as const, label: 'Nombre del producto', placeholder: 'Coca-Cola 600ml', full: true, type: 'text' },
+              { name: 'sku' as const, label: 'SKU / Codigo', placeholder: 'BEB-001', full: false, type: 'text' },
+              { name: 'codigo_barras' as const, label: 'Codigo de barras', placeholder: '7501055300231', full: false, type: 'text' },
+              { name: 'categoria' as const, label: 'Categoria', placeholder: 'Bebidas', full: false, type: 'text' },
+              { name: 'precio_compra' as const, label: 'Precio compra ($)', placeholder: '0.00', full: false, type: 'number' },
+              { name: 'precio_venta' as const, label: 'Precio venta ($)', placeholder: '0.00', full: false, type: 'number' },
+              { name: 'existencia' as const, label: 'Stock actual', placeholder: '0', full: false, type: 'number' },
+              { name: 'stock_min' as const, label: 'Stock minimo', placeholder: '10', full: false, type: 'number' },
+            ] as const).map(f => {
+              const err = form.formState.errors[f.name]
+              return (
+                <div key={f.name} className={f.full ? 'col-span-2' : ''}>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1.5">{f.label}</label>
+                  <input type={f.type} {...form.register(f.name)} placeholder={f.placeholder}
+                    className={'w-full px-3 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 min-h-[48px] ' + (err ? 'border-red-300 bg-red-50' : 'border-border bg-muted')} />
+                  {err && <p className="text-xs text-red-500 mt-1">{err.message}</p>}
+                </div>
+              )
+            })}
           </div>
           <div className="flex gap-3 mt-5">
-            <Btn variant="outline" onClick={() => setShowModal(false)} className="flex-1 min-h-[52px]">Cancelar</Btn>
-            <Btn variant="primary" onClick={() => { setShowModal(false); toast.success('Producto guardado exitosamente') }} className="flex-1 min-h-[52px]">Guardar producto</Btn>
+            <Btn type="button" variant="outline" onClick={() => { form.reset(); setShowModal(false) }} className="flex-1 min-h-[52px]">Cancelar</Btn>
+            <Btn type="submit" variant="primary" className="flex-1 min-h-[52px]">Guardar producto</Btn>
           </div>
-        </div>
+        </form>
       </BottomSheet>
       <ConfirmDialog
         open={deleteTarget !== null}
