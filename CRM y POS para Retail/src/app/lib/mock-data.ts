@@ -54,17 +54,6 @@ export const recentSales: Sale[] = [
   { id: 5, folio: '#V-1043', cliente: 'Cliente general', total: 56.50, metodo_pago: 'efectivo', items: [], created_at: new Date().toISOString() },
 ]
 
-export const posProducts = [
-  { id: 1, codigo: '7501055300231', nombre: 'Coca-Cola 600ml', precio: 20.00, categoria: 'Bebidas' },
-  { id: 2, codigo: '7500478000014', nombre: 'Leche Lala 1L', precio: 24.00, categoria: 'Lácteos' },
-  { id: 3, codigo: '7501011008084', nombre: 'Sabritas Original', precio: 15.00, categoria: 'Botanas' },
-  { id: 4, codigo: '7501055328037', nombre: 'Agua Ciel 600ml', precio: 12.00, categoria: 'Bebidas' },
-  { id: 5, codigo: '7500462010012', nombre: 'Pan Bimbo', precio: 22.00, categoria: 'Panadería' },
-  { id: 6, codigo: '7501023011014', nombre: 'Arroz La Merced 1kg', precio: 30.00, categoria: 'Abarrotes' },
-  { id: 7, codigo: '7501031305059', nombre: 'Frijol Bayo 1kg', precio: 28.00, categoria: 'Abarrotes' },
-  { id: 8, codigo: '7501003020024', nombre: 'Aceite Nutrioli 900ml', precio: 52.00, categoria: 'Abarrotes' },
-]
-
 export const suppliers: Supplier[] = [
   { id: 1, nombre: 'Coca-Cola FEMSA', contacto: 'Carlos López', telefono: '55-1111-2222', email: 'carlos@coca-cola.com', direccion: 'Av. Industriales 100, CDMX' },
   { id: 2, nombre: 'Grupo Lala', contacto: 'Ana Pérez', telefono: '55-3333-4444', email: 'ana@lala.mx', direccion: 'Blvd. Norte 200, CDMX' },
