@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { Search, Plus, Filter, Package2, Edit2, Trash2, Eye, AlertTriangle, XCircle, Package, X } from 'lucide-react'
 import { useBreakpoint } from '../../hooks/useBreakpoint'
 import { Btn } from '../../components/shared/Button'
@@ -183,7 +184,7 @@ export function InventoryScreen() {
           </div>
           <div className="flex gap-3 mt-5">
             <Btn variant="outline" onClick={() => setShowModal(false)} className="flex-1 min-h-[52px]">Cancelar</Btn>
-            <Btn variant="primary" onClick={() => setShowModal(false)} className="flex-1 min-h-[52px]">Guardar producto</Btn>
+            <Btn variant="primary" onClick={() => { setShowModal(false); toast.success('Producto guardado exitosamente') }} className="flex-1 min-h-[52px]">Guardar producto</Btn>
           </div>
         </div>
       </BottomSheet>

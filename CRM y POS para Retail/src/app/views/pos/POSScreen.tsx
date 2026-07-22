@@ -1,4 +1,5 @@
-﻿import { useState } from 'react'
+﻿import { useState, useEffect } from 'react'
+import { toast } from 'sonner'
 import { Search, ShoppingCart, CheckCircle, Scan, Package2, Banknote, Smartphone, CreditCard, X, MessageCircle, Mail, Download } from 'lucide-react'
 import { useBreakpoint } from '../../hooks/useBreakpoint'
 import { useCart } from '../../contexts/CartContext'
@@ -152,6 +153,10 @@ export function POSScreen() {
     },
   })
 
+  useEffect(() => {
+    if (scanError) toast.error(scanError)
+  }, [scanError])
+
   const filtered = posProducts.filter(p => {
     const ms = p.nombre.toLowerCase().includes(search.toLowerCase()) || p.codigo.includes(search)
     const mc = activeCategory === 'Todos' || p.categoria === activeCategory
@@ -162,6 +167,7 @@ export function POSScreen() {
     if (paymentMethod === 'efectivo' && !cashAmount) return
     setShowTicket(true)
     setShowPayment(false)
+    toast.success('Venta registrada exitosamente')
   }
 
   const newSale = () => {
@@ -259,7 +265,6 @@ export function POSScreen() {
                   <span className="text-sm opacity-70">Toca para iniciar escaneo</span>
                 </button>
               )}
-              {scanError && <div className="absolute bottom-4 text-red-400 text-xs bg-black/80 px-3 py-2 rounded-xl">{scanError}</div>}
             </div>
           </div>
         </BottomSheet>
@@ -344,7 +349,6 @@ export function POSScreen() {
                 <span className="text-sm opacity-70">Toca para iniciar escaneo</span>
               </button>
             )}
-            {scanError && <div className="absolute bottom-4 text-red-400 text-xs bg-black/80 px-3 py-2 rounded-xl">{scanError}</div>}
           </div>
         </div>
       </BottomSheet>

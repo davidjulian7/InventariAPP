@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { Building2, Users, CreditCard, Bot, Printer, Bell, Zap, ChevronDown } from 'lucide-react'
 import { useBreakpoint } from '../../hooks/useBreakpoint'
 import { Btn } from '../../components/shared/Button'
@@ -54,7 +55,7 @@ export function SettingsScreen() {
                   className="w-full px-3 py-3 rounded-xl border border-border bg-muted text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 min-h-[48px]" />
               </div>
             ))}
-            <Btn variant="primary" className="w-full min-h-[52px]">Guardar cambios</Btn>
+            <Btn variant="primary" className="w-full min-h-[52px]" onClick={() => toast.success('Cambios guardados correctamente')}>Guardar cambios</Btn>
           </div>
         )
       },
@@ -127,7 +128,7 @@ export function SettingsScreen() {
               </div>
             ))}
           </div>
-          <div className="mt-5 flex gap-3"><Btn variant="primary">Guardar cambios</Btn><Btn variant="ghost">Cancelar</Btn></div>
+          <div className="mt-5 flex gap-3"><Btn variant="primary" onClick={() => toast.success('Cambios guardados correctamente')}>Guardar cambios</Btn><Btn variant="ghost">Cancelar</Btn></div>
         </div>
         <div className="bg-card rounded-2xl border border-border/50 p-6 shadow-sm">
           <h2 className="text-base font-bold text-foreground mb-5">Notificaciones</h2>

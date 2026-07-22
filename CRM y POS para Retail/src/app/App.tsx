@@ -8,6 +8,7 @@ import { Header } from './components/layout/Header'
 import { BottomNav } from './components/layout/BottomNav'
 import { MobileDrawer } from './components/layout/MobileDrawer'
 import { ProtectedRoute } from './components/shared/ProtectedRoute'
+import { Toaster } from './components/ui/sonner'
 
 const LoginScreen = lazy(() => import('./views/auth/LoginScreen').then(m => ({ default: m.LoginScreen })))
 const DashboardScreen = lazy(() => import('./views/dashboard/DashboardScreen').then(m => ({ default: m.DashboardScreen })))
@@ -61,6 +62,7 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <CartProvider>
+          <Toaster richColors closeButton />
           <Routes>
             <Route path="/login" element={
               <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" /></div>}>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
+import { toast } from 'sonner'
 import { ShoppingBag, TrendingUp, ArrowUpRight, Sparkles, RefreshCw } from 'lucide-react'
 import { useBreakpoint } from '../../hooks/useBreakpoint'
 import { useAuth } from '../../contexts/AuthContext'
@@ -13,16 +14,14 @@ export function LoginScreen() {
   const [password, setPassword] = useState('admin123')
   const [remember, setRemember] = useState(true)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
 
   const handleLogin = async () => {
     setLoading(true)
-    setError('')
     try {
       await login(email, password)
       navigate('/dashboard')
     } catch (err: any) {
-      setError(err.message || 'Error al iniciar sesión')
+      toast.error(err.message || 'Error al iniciar sesión')
     } finally {
       setLoading(false)
     }
@@ -30,7 +29,6 @@ export function LoginScreen() {
 
   const formContent = (
     <div className="flex flex-col gap-5">
-      {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">{error}</div>}
       <div>
         <label className="block text-sm font-semibold text-foreground mb-1.5">Correo electrónico</label>
         <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="admin@mitienda.mx"
