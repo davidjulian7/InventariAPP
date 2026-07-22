@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
-import { Search, ShoppingCart, CheckCircle, Scan, Package2, Banknote, Smartphone, CreditCard, X, MessageCircle, Mail, Download } from 'lucide-react'
+import { Search, ShoppingCart, CheckCircle, Scan, Package2, Banknote, Smartphone, CreditCard, X, MessageCircle, Mail, Download, RefreshCw } from 'lucide-react'
 import { useBreakpoint } from '../../hooks/useBreakpoint'
 import { useCart } from '../../contexts/CartContext'
 import { useBarcodeScanner } from '../../hooks/useBarcodeScanner'
@@ -8,9 +8,14 @@ import { BottomSheet } from '../../components/shared/BottomSheet'
 import { Btn } from '../../components/shared/Button'
 import { Badge } from '../../components/shared/Badge'
 import { ConfirmDialog } from '../../components/shared/ConfirmDialog'
-import { posProducts } from '../../lib/mock-data'
+import { ProductService } from '../../services/product.service'
+import type { Product } from '../../types'
 
-const categories = ['Todos', 'Bebidas', 'Lacteos', 'Botanas', 'Abarrotes', 'Panaderia']
+const CART_PRODUCT_FIELDS = ['id', 'codigo', 'nombre', 'precio', 'categoria'] as const
+
+function toCartProduct(p: Product) {
+  return { id: p.id, codigo: p.codigo_barras, nombre: p.nombre, precio: p.precio_venta, categoria: p.categoria }
+}
 
 function CartItems({ cart, updateQty, empty }: { cart: any[]; updateQty: (id: number, q: number) => void; empty: boolean }) {
   if (empty) return (
@@ -108,7 +113,7 @@ function TicketPanel({ cart, subtotal, iva, total, onNewSale }: {
       </div>
       <div className="bg-muted rounded-xl p-4 flex-1 overflow-y-auto font-mono text-xs text-foreground">
         <div className="text-center mb-3">
-          <div className="font-bold text-sm">Abarrotes El Roble</div>
+          <div className="font-bold text-sm">Abarrotes El Robble</div>
           <div className="text-muted-foreground">Calle Principal 45, CDMX</div>
           <div className="text-muted-foreground">{dateStr}</div>
         </div>
@@ -134,6 +139,20 @@ function TicketPanel({ cart, subtotal, iva, total, onNewSale }: {
   )
 }
 
+function SkeletonGrid() {
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div key={i} className="bg-card border border-border/50 rounded-2xl p-3.5 animate-pulse">
+          <div className="w-9 h-9 bg-muted rounded-xl mb-2.5" />
+          <div className="h-3 bg-muted rounded w-3/4 mb-2" />
+          <div className="h-4 bg-muted rounded w-1/2" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export function POSScreen() {
   const { isMobile, isTablet } = useBreakpoint()
   const { cart, addToCart, updateQty, clearCart, subtotal, iva, total, totalItems, isEmpty } = useCart()
@@ -146,11 +165,39 @@ export function POSScreen() {
   const [showPayment, setShowPayment] = useState(false)
   const [showScanner, setShowScanner] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      try {
+        setLoading(true)
+        setLoadError(false)
+        const data = await ProductService.getAll(1)
+        if (!cancelled) setProducts(data)
+      } catch {
+        if (!cancelled) {
+          setLoadError(true)
+          toast.error('Error al cargar productos')
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [])
+
+  const categories = ['Todos', ...new Set(products.map(p => p.categoria).filter(Boolean))]
+
+  const cartProducts = products.map(toCartProduct)
 
   const { scanning, error: scanError, videoRef, startScanning, stopScanning } = useBarcodeScanner({
     onDetect: (barcode: string) => {
-      const product = posProducts.find(p => p.codigo === barcode)
-      if (product) addToCart(product)
+      const product = products.find(p => p.codigo_barras === barcode)
+      if (product) addToCart(toCartProduct(product))
       setShowScanner(false)
     },
   })
@@ -159,7 +206,7 @@ export function POSScreen() {
     if (scanError) toast.error(scanError)
   }, [scanError])
 
-  const filtered = posProducts.filter(p => {
+  const filtered = cartProducts.filter(p => {
     const ms = p.nombre.toLowerCase().includes(search.toLowerCase()) || p.codigo.includes(search)
     const mc = activeCategory === 'Todos' || p.categoria === activeCategory
     return ms && mc
@@ -178,6 +225,40 @@ export function POSScreen() {
     setCashAmount('')
     setShowCart(false)
     setShowPayment(false)
+  }
+
+  const retryLoad = () => {
+    setLoading(true)
+    setLoadError(false)
+    ProductService.getAll(1).then(data => {
+      setProducts(data)
+      setLoading(false)
+    }).catch(() => {
+      setLoadError(true)
+      setLoading(false)
+      toast.error('Error al cargar productos')
+    })
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-4 p-4">
+        <div className="h-12 bg-muted rounded-xl animate-pulse" />
+        <div className="h-8 bg-muted rounded-xl animate-pulse w-1/2" />
+        <SkeletonGrid />
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <p className="text-muted-foreground mb-4">No se pudieron cargar los productos</p>
+        <button onClick={retryLoad} className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl text-sm font-semibold cursor-pointer min-h-[44px]">
+          <RefreshCw size={15} />Reintentar
+        </button>
+      </div>
+    )
   }
 
   if (isMobile) {
@@ -208,6 +289,9 @@ export function POSScreen() {
               </button>
             ))}
           </div>
+          {filtered.length === 0 && search && (
+            <div className="text-center text-muted-foreground text-sm py-8">Sin resultados para "{search}"</div>
+          )}
         </div>
         <div className="py-3 bg-card border-t border-border shadow-lg shrink-0">
           {showTicket ? (
@@ -276,7 +360,7 @@ export function POSScreen() {
           onOpenChange={setShowClearConfirm}
           onConfirm={() => { clearCart(); setShowClearConfirm(false) }}
           title="Limpiar carrito"
-          description="¿Estás seguro de vaciar el carrito? Se perderán todos los productos agregados."
+          description="¿Estas seguro de vaciar el carrito? Se perderan todos los productos agregados."
           confirmText="Limpiar"
           destructive
         />
@@ -316,6 +400,9 @@ export function POSScreen() {
                 </button>
               ))}
             </div>
+            {filtered.length === 0 && search && (
+              <div className="text-center text-muted-foreground text-sm py-8">Sin resultados para "{search}"</div>
+            )}
           </div>
         </div>
         <div className="bg-card rounded-2xl border border-border/50 p-4 shadow-sm">
@@ -370,7 +457,7 @@ export function POSScreen() {
         onOpenChange={setShowClearConfirm}
         onConfirm={() => { clearCart(); setShowClearConfirm(false) }}
         title="Limpiar carrito"
-        description="¿Estás seguro de vaciar el carrito? Se perderán todos los productos agregados."
+        description="¿Estas seguro de vaciar el carrito? Se perderan todos los productos agregados."
         confirmText="Limpiar"
         destructive
       />
