@@ -1,46 +1,49 @@
-import { db } from '../lib/data'
+import { apiFetch } from './api'
 import type { User } from '../types'
+
+const TOKEN_KEY = 'inventari_token'
+const USER_KEY = 'inventari_current_user'
 
 export class AuthService {
   static async login(email: string, password: string): Promise<User | null> {
-    const users = db.query<any>('usuarios', (u: any) => u.correo === email && u.contraseña === password)
-    if (users.length === 0) return null
-    const u = users[0]
-    const tiendas = db.query<any>('tienda', (t: any) => t.usuario_id === u.id)
-    return {
-      id: u.id,
-      email: u.correo,
-      nombre: u.nombre_completo,
-      rol: u.rol,
-      store_id: tiendas.length > 0 ? tiendas[0].id : 1,
-    }
+    const data = await apiFetch<{ token: string; user: User }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    })
+    localStorage.setItem(TOKEN_KEY, data.token)
+    localStorage.setItem(USER_KEY, JSON.stringify(data.user))
+    return data.user
   }
 
   static async logout(): Promise<void> {
-    localStorage.removeItem('inventari_current_user')
+    try {
+      await apiFetch('/auth/logout', { method: 'POST' })
+    } catch {
+      // El servidor puede estar caído; la sesión local se limpia igualmente
+    }
+    localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(USER_KEY)
   }
 
   static async getCurrentUser(): Promise<User | null> {
+    if (!localStorage.getItem(TOKEN_KEY)) return null
     try {
-      const raw = localStorage.getItem('inventari_current_user')
-      return raw ? JSON.parse(raw) : null
+      const data = await apiFetch<{ user: User }>('/auth/me')
+      localStorage.setItem(USER_KEY, JSON.stringify(data.user))
+      return data.user
     } catch {
       return null
     }
   }
 
-  static async register(email: string, password: string, nombre: string): Promise<User | null> {
-    const existing = db.query<any>('usuarios', (u: any) => u.correo === email)
-    if (existing.length > 0) throw new Error('El usuario ya existe')
-
-    const newUser = db.insert('usuarios', { usuario: nombre, nombre_completo: nombre, correo: email, contraseña: password, rol: 'admin' })
-    return {
-      id: newUser.id,
-      email: newUser.correo,
-      nombre: newUser.nombre_completo,
-      rol: newUser.rol,
-      store_id: 1,
-    }
+  static async register(email: string, password: string, nombre: string): Promise<User> {
+    const data = await apiFetch<{ token: string; user: User }>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, nombre }),
+    })
+    localStorage.setItem(TOKEN_KEY, data.token)
+    localStorage.setItem(USER_KEY, JSON.stringify(data.user))
+    return data.user
   }
 
   static onAuthStateChange(_callback: (user: User | null) => void) {
