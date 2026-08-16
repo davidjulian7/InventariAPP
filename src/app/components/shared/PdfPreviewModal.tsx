@@ -2,8 +2,8 @@ import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Download } from 'lucide-react'
 
-export function PdfPreviewModal({ url, filename, onClose }: {
-  url: string; filename: string; onClose: () => void
+export function PdfPreviewModal({ url, filename, onClose, title = 'Vista previa' }: {
+  url: string; filename: string; onClose: () => void; title?: string
 }) {
   useEffect(() => {
     document.body.style.overflow = 'hidden'
@@ -22,7 +22,7 @@ export function PdfPreviewModal({ url, filename, onClose }: {
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative bg-card rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 shrink-0">
-          <h3 className="font-bold text-foreground text-sm">Vista previa del ticket</h3>
+          <h3 className="font-bold text-foreground text-sm">{title}</h3>
           <div className="flex items-center gap-2">
             <button onClick={download}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-white text-xs font-semibold cursor-pointer min-h-[40px] hover:bg-secondary transition-colors">

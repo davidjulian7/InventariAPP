@@ -104,3 +104,30 @@ export interface TopProduct {
   ingresos: number
   margen: number
 }
+
+export interface ReportSummary {
+  ventas: number
+  transacciones: number
+  ganancia: number
+  margen: number
+  ticketPromedio: number
+}
+
+export interface CategoryData {
+  name: string
+  value: number
+  color: string
+}
+
+export interface MonthlyData {
+  mes: string
+  ventas: number
+  ganancia: number
+}
+
+export interface CashFlow {
+  ingresos: number
+  iva: number
+  costoVendido: number
+  flujoNeto: number
+}
