@@ -3,12 +3,14 @@ import { toast } from 'sonner'
 import { Search, ShoppingCart, CheckCircle, Scan, Package2, Banknote, Smartphone, CreditCard, X, MessageCircle, Mail, Download, RefreshCw } from 'lucide-react'
 import { useBreakpoint } from '../../hooks/useBreakpoint'
 import { useCart } from '../../contexts/CartContext'
+import { useAuth } from '../../contexts/AuthContext'
 import { useBarcodeScanner } from '../../hooks/useBarcodeScanner'
 import { BottomSheet } from '../../components/shared/BottomSheet'
 import { Btn } from '../../components/shared/Button'
 import { Badge } from '../../components/shared/Badge'
 import { ConfirmDialog } from '../../components/shared/ConfirmDialog'
 import { ProductService } from '../../services/product.service'
+import { SaleService } from '../../services/sale.service'
 import type { Product } from '../../types'
 
 const CART_PRODUCT_FIELDS = ['id', 'codigo', 'nombre', 'precio', 'categoria'] as const
@@ -101,15 +103,15 @@ function PaymentPanel({ method, setMethod, cashAmount, setCashAmount, total, car
   )
 }
 
-function TicketPanel({ cart, subtotal, iva, total, onNewSale }: {
-  cart: any[]; subtotal: number; iva: number; total: number; onNewSale: () => void
+function TicketPanel({ cart, subtotal, iva, total, folio, onNewSale }: {
+  cart: any[]; subtotal: number; iva: number; total: number; folio: string; onNewSale: () => void
 }) {
   const [dateStr] = useState(new Date().toLocaleString('es-MX'))
   return (
     <div className="flex flex-col h-full p-4">
       <div className="flex items-center gap-2.5 mb-4">
         <div className="w-9 h-9 bg-green-100 rounded-xl flex items-center justify-center"><CheckCircle size={18} className="text-green-600" /></div>
-        <div><div className="font-bold text-foreground text-sm">Venta completada</div><div className="text-xs text-muted-foreground">Ticket #V-1048</div></div>
+        <div><div className="font-bold text-foreground text-sm">Venta completada</div><div className="text-xs text-muted-foreground">Ticket {folio}</div></div>
       </div>
       <div className="bg-muted rounded-xl p-4 flex-1 overflow-y-auto font-mono text-xs text-foreground">
         <div className="text-center mb-3">
@@ -155,6 +157,7 @@ function SkeletonGrid() {
 
 export function POSScreen() {
   const { isMobile, isTablet } = useBreakpoint()
+  const { user } = useAuth()
   const { cart, addToCart, updateQty, clearCart, subtotal, iva, total, totalItems, isEmpty } = useCart()
   const [search, setSearch] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('efectivo')
@@ -165,6 +168,7 @@ export function POSScreen() {
   const [showPayment, setShowPayment] = useState(false)
   const [showScanner, setShowScanner] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
+  const [lastFolio, setLastFolio] = useState('')
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
@@ -212,16 +216,23 @@ export function POSScreen() {
     return ms && mc
   })
 
-  const paySale = () => {
+  const paySale = async () => {
     if (paymentMethod === 'efectivo' && !cashAmount) return
-    setShowTicket(true)
-    setShowPayment(false)
-    toast.success('Venta registrada exitosamente')
+    try {
+      const sale = await SaleService.create(cart, paymentMethod, user?.store_id ?? 1, user?.id ?? 0)
+      setLastFolio(sale.folio)
+      setShowTicket(true)
+      setShowPayment(false)
+      toast.success('Venta registrada exitosamente')
+    } catch (err: any) {
+      toast.error(err.message || 'Error al registrar la venta')
+    }
   }
 
   const newSale = () => {
     clearCart()
     setShowTicket(false)
+    setLastFolio('')
     setCashAmount('')
     setShowCart(false)
     setShowPayment(false)
@@ -333,7 +344,7 @@ export function POSScreen() {
               <button onClick={() => { setShowPayment(false); setShowCart(true); }} className="text-xs text-primary font-semibold cursor-pointer">Editar carrito</button>
             </div>
             {showTicket ? (
-              <TicketPanel cart={cart} subtotal={subtotal} iva={iva} total={total} onNewSale={newSale} />
+              <TicketPanel cart={cart} subtotal={subtotal} iva={iva} total={total} folio={lastFolio} onNewSale={newSale} />
             ) : (
               <PaymentPanel method={paymentMethod} setMethod={setPaymentMethod} cashAmount={cashAmount} setCashAmount={setCashAmount} total={total} cart={cart} onPay={paySale} />
             )}
@@ -416,7 +427,7 @@ export function POSScreen() {
       <div className="w-72 flex flex-col gap-4 shrink-0">
         {showTicket ? (
           <div className="flex-1 bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden">
-            <TicketPanel cart={cart} subtotal={subtotal} iva={iva} total={total} onNewSale={newSale} />
+            <TicketPanel cart={cart} subtotal={subtotal} iva={iva} total={total} folio={lastFolio} onNewSale={newSale} />
           </div>
         ) : (
           <>

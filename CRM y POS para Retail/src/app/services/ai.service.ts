@@ -1,4 +1,4 @@
-import { db } from '../lib/data'
+import { apiFetch } from './api'
 import type { AIMessage } from '../types'
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || ''
@@ -9,23 +9,25 @@ const SYSTEM_PROMPT = `Eres un asistente experto en retail y abarrotes que ayuda
 Analizas datos de ventas, inventario y proveedores para dar recomendaciones accionables.
 Sé conciso, práctico y directo. Tus respuestas deben ser cortas (máximo 3 párrafos).`
 
-function buildContext(storeId: number): string {
-  const invs = db.query<any>('inventario', (i: any) => i.tienda_id === storeId)
-  const productos = invs.map((i: any) => {
-    const p = db.getById<any>('producto', i.producto_id)
-    return p ? { ...p, cantidad: i.cantidad, stock_minimo: i.stock_minimo, precio_venta: i.precio_venta } : null
-  }).filter(Boolean)
+interface StoreContext {
+  totalProducts: number
+  lowStockCount: number
+  totalSalesCount: number
+  totalRevenue: number
+  lowStock: { nombre: string; cantidad: number; stockMin: number }[]
+}
 
-  const lowStock = productos.filter((p: any) => p.cantidad < p.stock_minimo)
-  const ventas = db.getAll<any>('venta').filter((v: any) => v.tienda_id === storeId)
-  const totalSales = ventas.reduce((sum: number, v: any) => sum + Number(v.total), 0)
+async function fetchContext(storeId: number): Promise<StoreContext> {
+  return apiFetch<StoreContext>('/ai/context')
+}
 
+function buildContext(ctx: StoreContext): string {
   return `Contexto actual de la tienda:
-- Productos en catálogo: ${productos.length}
-- Productos con stock bajo: ${lowStock.length}
-- Ventas totales registradas: ${ventas.length}
-- Ingresos totales: $${totalSales.toLocaleString()}
-- Productos con bajo stock: ${lowStock.map((p: any) => `${p.nombre} (${p.cantidad} uds)`).join(', ') || 'Ninguno'}`
+- Productos en catálogo: ${ctx.totalProducts}
+- Productos con stock bajo: ${ctx.lowStockCount}
+- Ventas totales registradas: ${ctx.totalSalesCount}
+- Ingresos totales: $${ctx.totalRevenue.toLocaleString()}
+- Productos con bajo stock: ${ctx.lowStock.map(p => `${p.nombre} (${p.cantidad} uds)`).join(', ') || 'Ninguno'}`
 }
 
 async function callGemini(prompt: string): Promise<string> {
@@ -56,7 +58,8 @@ async function callGemini(prompt: string): Promise<string> {
 
 export class AIService {
   static async sendMessage(messages: AIMessage[], storeId: number): Promise<string> {
-    const context = buildContext(storeId)
+    const ctx = await fetchContext(storeId)
+    const context = buildContext(ctx)
     const history = messages.map(m => `${m.role === 'user' ? 'Usuario' : 'Asistente'}: ${m.content}`).join('\n')
     const prompt = `${SYSTEM_PROMPT}\n\n${context}\n\nHistorial del chat:\n${history}\n\nAsistente:`
     return callGemini(prompt)
@@ -66,11 +69,12 @@ export class AIService {
     if (!GEMINI_API_KEY) {
       return [
         { titulo: 'Configura IA', desc: 'Agrega VITE_GEMINI_API_KEY en .env para obtener insights.', tipo: 'alert' },
-        { titulo: 'Demo activa', desc: 'Los datos se guardan localmente en el navegador.', tipo: 'star' },
+        { titulo: 'Demo activa', desc: 'Los datos se guardan en la base de datos local (SQLite).', tipo: 'star' },
       ]
     }
 
-    const context = buildContext(storeId)
+    const ctx = await fetchContext(storeId)
+    const context = buildContext(ctx)
     const prompt = `${SYSTEM_PROMPT}\n\n${context}\n\nGenera 3 insights de negocio en formato JSON exacto (sin markdown): 
 [{ "titulo": "...", "desc": "...", "tipo": "trending_up|alert|star|zap" }]`
 
@@ -87,17 +91,7 @@ export class AIService {
   }
 
   static async getRestockSuggestions(storeId: number): Promise<{ producto: string; prioridad: string; razon: string }[]> {
-    const invs = db.query<any>('inventario', (i: any) =>
-      i.tienda_id === storeId && i.cantidad <= i.stock_minimo
-    )
-    const suggestions = invs.map((i: any) => {
-      const p = db.getById<any>('producto', i.producto_id)
-      return {
-        producto: p ? p.nombre : `Producto #${i.producto_id}`,
-        prioridad: i.cantidad === 0 ? 'alta' : i.cantidad < i.stock_minimo / 2 ? 'media' : 'baja',
-        razon: `Stock actual: ${i.cantidad} / Mínimo: ${i.stock_minimo}`,
-      }
-    })
+    const suggestions = await apiFetch<{ producto: string; prioridad: string; razon: string }[]>('/ai/restock-suggestions')
 
     if (suggestions.length === 0) {
       return [{ producto: 'Todo en stock', prioridad: 'baja', razon: 'No hay productos por reabastecer.' }]
@@ -107,24 +101,13 @@ export class AIService {
   }
 
   static async saveChat(userId: number, title: string, messages: AIMessage[]) {
-    const chat = db.insert('ai_chats', { title, user_id: userId })
-    for (const m of messages) {
-      db.insert('ai_messages', {
-        chat_id: chat.id,
-        role: m.role,
-        content: m.content,
-      })
-    }
-    return chat
+    return apiFetch<{ id: number; title: string; messages: { role: string; content: string }[] }>('/ai/chats', {
+      method: 'POST',
+      body: JSON.stringify({ title, messages }),
+    })
   }
 
   static async getChatHistory(userId: number) {
-    const chats = db.query<any>('ai_chats', (c: any) => c.user_id === userId)
-      .sort((a: any, b: any) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-
-    return chats.map((chat: any) => ({
-      ...chat,
-      messages: db.query<any>('ai_messages', (m: any) => m.chat_id === chat.id),
-    }))
+    return apiFetch<{ id: number; title: string; messages: { role: string; content: string }[] }[]>('/ai/chats')
   }
 }

@@ -1,6 +1,12 @@
 import express from 'express'
 import { randomBytes } from 'node:crypto'
 import db, { hashPassword, verifyPassword } from './db.js'
+import { requireAuth } from './middleware.js'
+import productsRouter from './routes/products.js'
+import salesRouter from './routes/sales.js'
+import reportsRouter from './routes/reports.js'
+import suppliersRouter from './routes/suppliers.js'
+import aiRouter from './routes/ai.js'
 
 const PORT = process.env.PORT || 4000
 const SESSION_DAYS = 30
@@ -16,26 +22,6 @@ function publicUser(user) {
     rol: user.rol,
     store_id: user.store_id,
   }
-}
-
-function requireAuth(req, res, next) {
-  const header = req.headers.authorization || ''
-  const token = header.startsWith('Bearer ') ? header.slice(7) : null
-  if (!token) return res.status(401).json({ error: 'No autorizado' })
-
-  const session = db.prepare(`
-    select s.token, s.user_id, s.expires_at,
-           u.email, u.nombre, u.rol, u.store_id
-    from sessions s
-    join users u on u.id = s.user_id
-    where s.token = ? and s.expires_at > datetime('now')
-  `).get(token)
-
-  if (!session) return res.status(401).json({ error: 'Sesión inválida o expirada' })
-
-  req.token = token
-  req.user = session
-  next()
 }
 
 app.get('/api/health', (_req, res) => {
@@ -97,6 +83,12 @@ app.post('/api/auth/logout', requireAuth, (req, res) => {
   db.prepare('delete from sessions where token = ?').run(req.token)
   res.json({ ok: true })
 })
+
+app.use('/api/products', requireAuth, productsRouter)
+app.use('/api/sales', requireAuth, salesRouter)
+app.use('/api/reports', requireAuth, reportsRouter)
+app.use('/api/suppliers', requireAuth, suppliersRouter)
+app.use('/api/ai', requireAuth, aiRouter)
 
 app.use((_req, res) => {
   res.status(404).json({ error: 'Ruta no encontrada' })

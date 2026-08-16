@@ -1,58 +1,26 @@
-import { db } from '../lib/data'
+import { apiFetch } from './api'
 import type { Supplier } from '../types'
 
 export class SupplierService {
   static async getAll(storeId: number): Promise<Supplier[]> {
-    const proveedores = db.getAll<any>('proveedor')
-    return proveedores
-      .sort((a: any, b: any) => a.nombre.localeCompare(b.nombre))
-      .map((p: any) => ({
-        id: p.id,
-        nombre: p.nombre,
-        contacto: p.contacto || '',
-        telefono: p.telefono || '',
-        email: p.email || '',
-        direccion: p.direccion || '',
-      }))
+    return apiFetch<Supplier[]>('/suppliers')
   }
 
   static async create(supplier: Partial<Supplier>): Promise<Supplier> {
-    const p = db.insert('proveedor', {
-      nombre: supplier.nombre,
-      contacto: supplier.contacto,
-      telefono: supplier.telefono,
-      email: supplier.email,
-      direccion: supplier.direccion,
+    return apiFetch<Supplier>('/suppliers', {
+      method: 'POST',
+      body: JSON.stringify(supplier),
     })
-    return {
-      id: p.id,
-      nombre: p.nombre,
-      contacto: p.contacto || '',
-      telefono: p.telefono || '',
-      email: p.email || '',
-      direccion: p.direccion || '',
-    }
   }
 
   static async update(id: number, supplier: Partial<Supplier>): Promise<Supplier> {
-    const p = db.update('proveedor', id, {
-      nombre: supplier.nombre,
-      contacto: supplier.contacto,
-      telefono: supplier.telefono,
-      email: supplier.email,
-      direccion: supplier.direccion,
+    return apiFetch<Supplier>(`/suppliers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(supplier),
     })
-    return {
-      id: p.id,
-      nombre: p.nombre,
-      contacto: p.contacto || '',
-      telefono: p.telefono || '',
-      email: p.email || '',
-      direccion: p.direccion || '',
-    }
   }
 
   static async delete(id: number): Promise<void> {
-    db.remove('proveedor', id)
+    await apiFetch(`/suppliers/${id}`, { method: 'DELETE' })
   }
 }
