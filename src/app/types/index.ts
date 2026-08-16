@@ -48,7 +48,12 @@ export interface Sale {
   id: number
   folio: string
   cliente: string
+  subtotal?: number
+  iva?: number
   total: number
+  monto_pagado?: number
+  adeudo?: number
+  estado_pago?: 'pagado' | 'adeudo'
   metodo_pago: 'efectivo' | 'transferencia' | 'terminal'
   items: SaleItem[]
   created_at: string

@@ -102,6 +102,7 @@ create table if not exists sales (
   subtotal real not null default 0,
   iva real not null default 0,
   total real not null default 0,
+  monto_pagado real not null default 0,
   metodo_pago text not null check (metodo_pago in ('efectivo', 'transferencia', 'terminal')),
   user_id integer references users(id),
   store_id integer references stores(id) on delete cascade,

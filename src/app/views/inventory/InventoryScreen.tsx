@@ -11,6 +11,7 @@ import { Btn } from '../../components/shared/Button'
 import { Badge } from '../../components/shared/Badge'
 import { BottomSheet } from '../../components/shared/BottomSheet'
 import { ConfirmDialog } from '../../components/shared/ConfirmDialog'
+import { formatUTC6Date } from '../../lib/dates'
 import type { Product } from '../../types'
 
 const productSchema = z.object({
@@ -56,8 +57,7 @@ function computeEstado(existencia: number, stockMin: number): Product['estado'] 
 }
 
 function formatDate(iso?: string): string {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' })
+  return formatUTC6Date(iso)
 }
 
 function getPages(current: number, total: number): (number | '…')[] {

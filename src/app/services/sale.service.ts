@@ -16,16 +16,32 @@ export class SaleService {
     return apiFetch<Sale[]>(`/sales?recent=true&limit=${limit}`)
   }
 
+  static async getById(id: number): Promise<Sale> {
+    return apiFetch<Sale>(`/sales/${id}`)
+  }
+
   static async create(
     cart: { id: number; codigo: string; nombre: string; precio: number; qty: number }[],
     metodoPago: string,
     storeId: number,
-    userId: number
+    userId: number,
+    montoPagado?: number
   ): Promise<Sale> {
     return apiFetch<Sale>('/sales', {
       method: 'POST',
-      body: JSON.stringify({ items: cart, metodo_pago: metodoPago }),
+      body: JSON.stringify({ items: cart, metodo_pago: metodoPago, monto_pagado: montoPagado }),
     })
+  }
+
+  static async update(id: number, data: Partial<Sale>): Promise<Sale> {
+    return apiFetch<Sale>(`/sales/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  static async delete(id: number): Promise<void> {
+    await apiFetch(`/sales/${id}`, { method: 'DELETE' })
   }
 
   static async getDailyTotals(storeId: number): Promise<{ total: number; count: number; promedio: number }> {

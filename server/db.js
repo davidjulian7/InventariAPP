@@ -11,7 +11,17 @@ const db = new DatabaseSync(DB_PATH)
 db.exec('PRAGMA foreign_keys = ON')
 db.exec(readFileSync(path.join(__dirname, 'schema.sql'), 'utf8'))
 
+ensureSalesColumn(db)
+
 seedIfEmpty(db)
+
+function ensureSalesColumn(database) {
+  const cols = database.prepare('pragma table_info(sales)').all().map(c => c.name)
+  if (cols.includes('monto_pagado')) return
+  database.exec('alter table sales add column monto_pagado real not null default 0')
+  database.exec('update sales set monto_pagado = total')
+  console.log('[db] Columna sales.monto_pagado agregada')
+}
 
 function seedIfEmpty(database) {
   const { c } = database.prepare('select count(*) as c from users').get()

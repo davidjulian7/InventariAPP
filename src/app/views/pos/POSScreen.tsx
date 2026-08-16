@@ -1,6 +1,6 @@
-﻿import { useState, useEffect } from 'react'
+﻿import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
-import { Search, ShoppingCart, CheckCircle, Scan, Package2, Banknote, Smartphone, CreditCard, X, MessageCircle, Mail, Download, RefreshCw } from 'lucide-react'
+import { Search, ShoppingCart, CheckCircle, Scan, Package2, Banknote, Smartphone, CreditCard, MessageCircle, Mail, Download, RefreshCw, Receipt, Clock, Eye, Pencil, Trash2 } from 'lucide-react'
 import { useBreakpoint } from '../../hooks/useBreakpoint'
 import { useCart } from '../../contexts/CartContext'
 import { useAuth } from '../../contexts/AuthContext'
@@ -9,14 +9,71 @@ import { BottomSheet } from '../../components/shared/BottomSheet'
 import { Btn } from '../../components/shared/Button'
 import { Badge } from '../../components/shared/Badge'
 import { ConfirmDialog } from '../../components/shared/ConfirmDialog'
+import { TicketReceipt } from '../../components/shared/TicketReceipt'
 import { ProductService } from '../../services/product.service'
 import { SaleService } from '../../services/sale.service'
-import type { Product } from '../../types'
+import { TicketModal } from './TicketModal'
+import { EditSaleSheet } from './EditSaleSheet'
+import { PdfPreviewModal } from './PdfPreviewModal'
+import { PAYMENT_LABELS, PAYMENT_STYLES, buildTicketText, generateTicketPdf, saleToTicketData, type TicketData } from '../../lib/ticket'
+import { formatUTC6Time } from '../../lib/dates'
+import type { Product, Sale } from '../../types'
 
 const CART_PRODUCT_FIELDS = ['id', 'codigo', 'nombre', 'precio', 'categoria'] as const
 
 function toCartProduct(p: Product) {
   return { id: p.id, codigo: p.codigo_barras, nombre: p.nombre, precio: p.precio_venta, categoria: p.categoria }
+}
+
+function TodayHistory({ sales, loading, onRefresh, onView, onEdit, onDelete }: {
+  sales: Sale[]; loading: boolean; onRefresh: () => void; onView: (s: Sale) => void; onEdit: (s: Sale) => void; onDelete: (s: Sale) => void
+}) {
+  return (
+    <div className="bg-card rounded-2xl border border-border/50 p-4 shadow-sm">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-bold text-foreground text-sm flex items-center gap-1.5"><Clock size={14} className="text-primary" />Historial del día</h3>
+        <button onClick={onRefresh} className="w-8 h-8 rounded-lg bg-muted hover:bg-border flex items-center justify-center cursor-pointer" aria-label="Actualizar historial">
+          <RefreshCw size={13} className="text-muted-foreground" />
+        </button>
+      </div>
+      {loading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-10 bg-muted rounded-xl animate-pulse" />)}
+        </div>
+      ) : sales.length === 0 ? (
+        <div className="text-center text-xs text-muted-foreground py-4">No hay ventas registradas hoy</div>
+      ) : (
+        <div className="divide-y divide-border/30 max-h-[40vh] overflow-y-auto">
+          {sales.map(sale => (
+            <div key={sale.id} className="py-2.5 flex items-center gap-2">
+              <div className="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center shrink-0"><Receipt size={15} className="text-primary" /></div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold text-foreground">{sale.folio}</span>
+                  <span className="text-xs text-muted-foreground">{formatUTC6Time(sale.created_at)}</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+                  <span>{sale.items.reduce((s, it) => s + Number(it.qty), 0)} artículos</span>
+                  <span className={`inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${PAYMENT_STYLES[sale.metodo_pago] || 'bg-muted text-muted-foreground'}`}>
+                    {PAYMENT_LABELS[sale.metodo_pago] || sale.metodo_pago}
+                  </span>
+                  {sale.estado_pago === 'adeudo' && (
+                    <Badge variant="danger">Adeudo ${Number(sale.adeudo || 0).toFixed(2)}</Badge>
+                  )}
+                </div>
+              </div>
+              <div className="text-sm font-bold text-primary shrink-0">${Number(sale.total).toFixed(2)}</div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button onClick={() => onView(sale)} className="w-8 h-8 rounded-lg bg-muted hover:bg-border flex items-center justify-center cursor-pointer" aria-label="Ver ticket"><Eye size={13} className="text-muted-foreground" /></button>
+                <button onClick={() => onEdit(sale)} className="w-8 h-8 rounded-lg bg-muted hover:bg-border flex items-center justify-center cursor-pointer" aria-label="Editar"><Pencil size={13} className="text-muted-foreground" /></button>
+                <button onClick={() => onDelete(sale)} className="w-8 h-8 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center cursor-pointer" aria-label="Eliminar"><Trash2 size={13} className="text-red-500" /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function CartItems({ cart, updateQty, empty }: { cart: any[]; updateQty: (id: number, q: number) => void; empty: boolean }) {
@@ -67,6 +124,8 @@ function PaymentPanel({ method, setMethod, cashAmount, setCashAmount, total, car
 }) {
   const cashVal = parseFloat(cashAmount) || 0
   const change = cashVal - total
+  const adeudo = total - cashVal
+  const isPartial = method === 'efectivo' && cashAmount !== '' && adeudo > 0.001
   return (
     <div className="space-y-4">
       <h3 className="font-bold text-foreground text-sm">Metodo de pago</h3>
@@ -87,7 +146,13 @@ function PaymentPanel({ method, setMethod, cashAmount, setCashAmount, total, car
           <label className="text-xs font-semibold text-muted-foreground">Efectivo recibido</label>
           <input type="number" value={cashAmount} onChange={e => setCashAmount(e.target.value)} placeholder="0.00"
             className="w-full mt-1.5 px-3 py-3 rounded-xl border border-border bg-muted text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 min-h-[48px]" />
-          {cashAmount && change >= 0 && (
+          {isPartial && (
+            <div className="mt-2 flex justify-between items-center bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+              <span className="text-sm text-amber-700 font-medium">Pago parcial · quedará a deber</span>
+              <span className="text-amber-700 font-bold text-base">${adeudo.toFixed(2)}</span>
+            </div>
+          )}
+          {cashAmount && !isPartial && change >= 0 && (
             <div className="mt-2 flex justify-between items-center bg-green-50 border border-green-100 rounded-xl px-3 py-2.5">
               <span className="text-sm text-green-700 font-medium">Cambio</span>
               <span className="text-green-700 font-bold text-base">${change.toFixed(2)}</span>
@@ -97,46 +162,61 @@ function PaymentPanel({ method, setMethod, cashAmount, setCashAmount, total, car
       )}
       <button onClick={onPay} disabled={cart.length === 0}
         className="w-full py-4 bg-primary text-white font-bold rounded-xl hover:bg-secondary transition-colors disabled:opacity-40 cursor-pointer text-sm min-h-[56px]">
-        Cobrar ${total.toFixed(2)}
+        {isPartial ? `Cobrar $${cashVal.toFixed(2)} y registrar adeudo` : `Cobrar $${total.toFixed(2)}`}
       </button>
     </div>
   )
 }
 
-function TicketPanel({ cart, subtotal, iva, total, folio, onNewSale }: {
-  cart: any[]; subtotal: number; iva: number; total: number; folio: string; onNewSale: () => void
-}) {
-  const [dateStr] = useState(new Date().toLocaleString('es-MX'))
+function TicketPanel({ data, onNewSale }: { data: TicketData; onNewSale: () => void }) {
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+
+  useEffect(() => () => {
+    if (pdfUrl) URL.revokeObjectURL(pdfUrl)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const sendWhatsApp = () => {
+    const text = buildTicketText(data)
+    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank')
+    toast.success('Abriendo WhatsApp...')
+  }
+
+  const sendEmail = () => {
+    const subject = `Ticket ${data.folio} - Abarrotes El Roble`
+    const body = buildTicketText(data)
+    window.location.href = 'mailto:?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body)
+    toast.success('Abriendo cliente de correo...')
+  }
+
+  const openPDF = async () => {
+    try {
+      toast.loading('Generando PDF...', { id: 'pdf' })
+      const { doc, filename } = await generateTicketPdf(data)
+      const url = URL.createObjectURL(doc.output('blob'))
+      setPdfUrl(url)
+      toast.success('PDF generado', { id: 'pdf' })
+    } catch (err: any) {
+      toast.error(err.message || 'Error al generar el PDF', { id: 'pdf' })
+    }
+  }
+
   return (
     <div className="flex flex-col h-full p-4">
       <div className="flex items-center gap-2.5 mb-4">
         <div className="w-9 h-9 bg-green-100 rounded-xl flex items-center justify-center"><CheckCircle size={18} className="text-green-600" /></div>
-        <div><div className="font-bold text-foreground text-sm">Venta completada</div><div className="text-xs text-muted-foreground">Ticket {folio}</div></div>
+        <div><div className="font-bold text-foreground text-sm">Venta completada</div><div className="text-xs text-muted-foreground">Ticket {data.folio}</div></div>
       </div>
-      <div className="bg-muted rounded-xl p-4 flex-1 overflow-y-auto font-mono text-xs text-foreground">
-        <div className="text-center mb-3">
-          <div className="font-bold text-sm">Abarrotes El Robble</div>
-          <div className="text-muted-foreground">Calle Principal 45, CDMX</div>
-          <div className="text-muted-foreground">{dateStr}</div>
-        </div>
-        <div className="border-t border-dashed border-border my-2" />
-        {cart.map(item => (
-          <div key={item.id} className="flex justify-between py-0.5">
-            <span className="truncate mr-2">{item.nombre} x{item.qty}</span>
-            <span className="shrink-0">${(item.precio * item.qty).toFixed(2)}</span>
-          </div>
-        ))}
-        <div className="border-t border-dashed border-border my-2" />
-        <div className="flex justify-between"><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
-        <div className="flex justify-between"><span>IVA 16%</span><span>${iva.toFixed(2)}</span></div>
-        <div className="flex justify-between font-bold border-t border-dashed border-border mt-1 pt-1"><span>TOTAL</span><span>${total.toFixed(2)}</span></div>
+      <div className="flex-1 overflow-y-auto">
+        <TicketReceipt data={data} />
       </div>
       <div className="flex flex-col gap-2 mt-4">
-        <Btn variant="primary" className="w-full min-h-[48px]"><MessageCircle size={15} />WhatsApp</Btn>
-        <Btn variant="outline" className="w-full min-h-[48px]"><Mail size={15} />Correo</Btn>
-        <Btn variant="outline" className="w-full min-h-[48px]"><Download size={15} />PDF</Btn>
+        <Btn variant="primary" className="w-full min-h-[48px]" onClick={sendWhatsApp}><MessageCircle size={15} />WhatsApp</Btn>
+        <Btn variant="outline" className="w-full min-h-[48px]" onClick={sendEmail}><Mail size={15} />Correo</Btn>
+        <Btn variant="outline" className="w-full min-h-[48px]" onClick={openPDF}><Download size={15} />Ver PDF</Btn>
         <Btn variant="secondary" onClick={onNewSale} className="w-full min-h-[48px]">Nueva venta</Btn>
       </div>
+      {pdfUrl && <PdfPreviewModal url={pdfUrl} filename={`ticket-${data.folio}.pdf`} onClose={() => setPdfUrl(null)} />}
     </div>
   )
 }
@@ -163,15 +243,35 @@ export function POSScreen() {
   const [paymentMethod, setPaymentMethod] = useState('efectivo')
   const [cashAmount, setCashAmount] = useState('')
   const [showTicket, setShowTicket] = useState(false)
+  const [completedSale, setCompletedSale] = useState<Sale | null>(null)
   const [activeCategory, setActiveCategory] = useState('Todos')
   const [showCart, setShowCart] = useState(false)
   const [showPayment, setShowPayment] = useState(false)
   const [showScanner, setShowScanner] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
-  const [lastFolio, setLastFolio] = useState('')
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
+  const [todaySales, setTodaySales] = useState<Sale[]>([])
+  const [historyLoading, setHistoryLoading] = useState(true)
+  const [viewTarget, setViewTarget] = useState<Sale | null>(null)
+  const [editTarget, setEditTarget] = useState<Sale | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Sale | null>(null)
+
+  const storeId = user?.store_id ?? 1
+  const ticketData = completedSale ? saleToTicketData(completedSale) : null
+
+  const loadHistory = useCallback(async () => {
+    try {
+      setHistoryLoading(true)
+      const data = await SaleService.getTodaySales(storeId)
+      setTodaySales(data)
+    } catch {
+      toast.error('Error al cargar el historial del día')
+    } finally {
+      setHistoryLoading(false)
+    }
+  }, [storeId])
 
   useEffect(() => {
     let cancelled = false
@@ -179,7 +279,7 @@ export function POSScreen() {
       try {
         setLoading(true)
         setLoadError(false)
-        const data = await ProductService.getAll(1)
+        const data = await ProductService.getAll(storeId)
         if (!cancelled) setProducts(data)
       } catch {
         if (!cancelled) {
@@ -192,13 +292,17 @@ export function POSScreen() {
     }
     load()
     return () => { cancelled = true }
-  }, [])
+  }, [storeId])
+
+  useEffect(() => {
+    loadHistory()
+  }, [loadHistory])
 
   const categories = ['Todos', ...new Set(products.map(p => p.categoria).filter(Boolean))]
 
   const cartProducts = products.map(toCartProduct)
 
-  const { scanning, error: scanError, videoRef, startScanning, stopScanning } = useBarcodeScanner({
+  const { scanning, error: scanError, containerRef, startScanning, stopScanning } = useBarcodeScanner({
     onDetect: (barcode: string) => {
       const product = products.find(p => p.codigo_barras === barcode)
       if (product) addToCart(toCartProduct(product))
@@ -218,12 +322,17 @@ export function POSScreen() {
 
   const paySale = async () => {
     if (paymentMethod === 'efectivo' && !cashAmount) return
+    const montoPagado = paymentMethod === 'efectivo' ? (parseFloat(cashAmount) || 0) : total
     try {
-      const sale = await SaleService.create(cart, paymentMethod, user?.store_id ?? 1, user?.id ?? 0)
-      setLastFolio(sale.folio)
+      const sale = await SaleService.create(cart, paymentMethod, storeId, user?.id ?? 0, montoPagado)
+      setCompletedSale(sale)
       setShowTicket(true)
       setShowPayment(false)
+      setCashAmount('')
+      clearCart()
       toast.success('Venta registrada exitosamente')
+      loadHistory()
+      if (isMobile) setViewTarget(sale)
     } catch (err: any) {
       toast.error(err.message || 'Error al registrar la venta')
     }
@@ -232,16 +341,29 @@ export function POSScreen() {
   const newSale = () => {
     clearCart()
     setShowTicket(false)
-    setLastFolio('')
+    setCompletedSale(null)
     setCashAmount('')
     setShowCart(false)
     setShowPayment(false)
+    setViewTarget(null)
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
+    try {
+      await SaleService.delete(deleteTarget.id)
+      toast.success('Venta eliminada')
+      setDeleteTarget(null)
+      loadHistory()
+    } catch (err: any) {
+      toast.error(err.message || 'Error al eliminar la venta')
+    }
   }
 
   const retryLoad = () => {
     setLoading(true)
     setLoadError(false)
-    ProductService.getAll(1).then(data => {
+    ProductService.getAll(storeId).then(data => {
       setProducts(data)
       setLoading(false)
     }).catch(() => {
@@ -271,6 +393,13 @@ export function POSScreen() {
       </div>
     )
   }
+
+  const history = (
+    <TodayHistory
+      sales={todaySales} loading={historyLoading} onRefresh={loadHistory}
+      onView={setViewTarget} onEdit={setEditTarget} onDelete={setDeleteTarget}
+    />
+  )
 
   if (isMobile) {
     return (
@@ -303,12 +432,18 @@ export function POSScreen() {
           {filtered.length === 0 && search && (
             <div className="text-center text-muted-foreground text-sm py-8">Sin resultados para "{search}"</div>
           )}
+          <div className="mt-4">{history}</div>
         </div>
         <div className="py-3 bg-card border-t border-border shadow-lg shrink-0">
-          {showTicket ? (
-            <button onClick={newSale} className="w-full py-3.5 bg-secondary/20 text-primary font-bold rounded-xl cursor-pointer text-sm min-h-[52px]">
-              Venta completada - Nueva venta
-            </button>
+          {showTicket && completedSale ? (
+            <div className="flex gap-2">
+              <button onClick={() => setViewTarget(completedSale)} className="flex-1 py-3.5 bg-secondary/20 text-primary font-bold rounded-xl cursor-pointer text-sm min-h-[52px]">
+                Ver ticket {completedSale.folio}
+              </button>
+              <button onClick={newSale} className="flex-1 py-3.5 bg-primary text-white font-bold rounded-xl cursor-pointer text-sm min-h-[52px]">
+                Nueva venta
+              </button>
+            </div>
           ) : (
             <button onClick={() => cart.length > 0 && setShowCart(true)} disabled={cart.length === 0}
               className="w-full py-3.5 bg-primary text-white font-bold rounded-xl cursor-pointer disabled:opacity-40 flex items-center justify-between px-5 min-h-[56px] hover:bg-secondary transition-colors">
@@ -343,19 +478,15 @@ export function POSScreen() {
               <div><div className="text-xs text-muted-foreground">{totalItems} productos</div><div className="text-lg font-bold text-foreground">Total: ${total.toFixed(2)}</div></div>
               <button onClick={() => { setShowPayment(false); setShowCart(true); }} className="text-xs text-primary font-semibold cursor-pointer">Editar carrito</button>
             </div>
-            {showTicket ? (
-              <TicketPanel cart={cart} subtotal={subtotal} iva={iva} total={total} folio={lastFolio} onNewSale={newSale} />
-            ) : (
-              <PaymentPanel method={paymentMethod} setMethod={setPaymentMethod} cashAmount={cashAmount} setCashAmount={setCashAmount} total={total} cart={cart} onPay={paySale} />
-            )}
+            <PaymentPanel method={paymentMethod} setMethod={setPaymentMethod} cashAmount={cashAmount} setCashAmount={setCashAmount} total={total} cart={cart} onPay={paySale} />
           </div>
         </BottomSheet>
 
-        <BottomSheet isOpen={showScanner} onClose={() => { stopScanning(); setShowScanner(false); }} title="Escanear codigo" fullHeight>
+        <BottomSheet isOpen={showScanner} onClose={() => { stopScanning(); setShowScanner(false); }} title="Escanear código" fullHeight>
           <div className="p-4">
             <div className="bg-black rounded-2xl overflow-hidden aspect-video flex items-center justify-center relative">
               {scanning ? (
-                <video ref={videoRef} className="w-full h-full object-cover" />
+                <div ref={containerRef} className="absolute inset-0 w-full h-full [&_video]:w-full [&_video]:h-full [&_video]:object-cover" />
               ) : (
                 <button onClick={startScanning} className="flex flex-col items-center gap-2 text-white cursor-pointer">
                   <Scan size={40} className="opacity-50" />
@@ -363,6 +494,7 @@ export function POSScreen() {
                 </button>
               )}
             </div>
+            {scanError && <p className="text-xs text-red-500 mt-3 text-center">{scanError}</p>}
           </div>
         </BottomSheet>
 
@@ -373,6 +505,18 @@ export function POSScreen() {
           title="Limpiar carrito"
           description="¿Estas seguro de vaciar el carrito? Se perderan todos los productos agregados."
           confirmText="Limpiar"
+          destructive
+        />
+
+        {viewTarget && <TicketModal sale={viewTarget} onClose={() => setViewTarget(null)} />}
+        {editTarget && <EditSaleSheet sale={editTarget} isOpen={!!editTarget} onClose={() => setEditTarget(null)} onSaved={loadHistory} />}
+        <ConfirmDialog
+          open={!!deleteTarget}
+          onOpenChange={o => !o && setDeleteTarget(null)}
+          onConfirm={confirmDelete}
+          title="Eliminar venta"
+          description={`¿Eliminar la venta ${deleteTarget?.folio ?? ''}? Se restaurará el stock de los productos vendidos.`}
+          confirmText="Eliminar"
           destructive
         />
       </div>
@@ -416,18 +560,13 @@ export function POSScreen() {
             )}
           </div>
         </div>
-        <div className="bg-card rounded-2xl border border-border/50 p-4 shadow-sm">
-          <h3 className="font-bold text-foreground text-sm mb-3">Historial del dia</h3>
-          <div className="space-y-2">
-            <div className="text-center text-xs text-muted-foreground py-4">No hay ventas registradas hoy</div>
-          </div>
-        </div>
+        <div className="bg-card rounded-2xl border border-border/50 shadow-sm">{history}</div>
       </div>
 
       <div className="w-72 flex flex-col gap-4 shrink-0">
-        {showTicket ? (
+        {showTicket && ticketData ? (
           <div className="flex-1 bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden">
-            <TicketPanel cart={cart} subtotal={subtotal} iva={iva} total={total} folio={lastFolio} onNewSale={newSale} />
+            <TicketPanel data={ticketData} onNewSale={newSale} />
           </div>
         ) : (
           <>
@@ -448,11 +587,11 @@ export function POSScreen() {
         )}
       </div>
 
-      <BottomSheet isOpen={showScanner} onClose={() => { stopScanning(); setShowScanner(false); }} title="Escanear codigo" fullHeight>
+      <BottomSheet isOpen={showScanner} onClose={() => { stopScanning(); setShowScanner(false); }} title="Escanear código" fullHeight>
         <div className="p-4">
           <div className="bg-black rounded-2xl overflow-hidden aspect-video flex items-center justify-center relative">
             {scanning ? (
-              <video ref={videoRef} className="w-full h-full object-cover" />
+              <div ref={containerRef} className="absolute inset-0 w-full h-full [&_video]:w-full [&_video]:h-full [&_video]:object-cover" />
             ) : (
               <button onClick={startScanning} className="flex flex-col items-center gap-2 text-white cursor-pointer">
                 <Scan size={40} className="opacity-50" />
@@ -460,6 +599,7 @@ export function POSScreen() {
               </button>
             )}
           </div>
+          {scanError && <p className="text-xs text-red-500 mt-3 text-center">{scanError}</p>}
         </div>
       </BottomSheet>
 
@@ -470,6 +610,18 @@ export function POSScreen() {
         title="Limpiar carrito"
         description="¿Estas seguro de vaciar el carrito? Se perderan todos los productos agregados."
         confirmText="Limpiar"
+        destructive
+      />
+
+      {viewTarget && <TicketModal sale={viewTarget} onClose={() => setViewTarget(null)} />}
+      {editTarget && <EditSaleSheet sale={editTarget} isOpen={!!editTarget} onClose={() => setEditTarget(null)} onSaved={loadHistory} />}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={o => !o && setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title="Eliminar venta"
+        description={`¿Eliminar la venta ${deleteTarget?.folio ?? ''}? Se restaurará el stock de los productos vendidos.`}
+        confirmText="Eliminar"
         destructive
       />
     </div>
