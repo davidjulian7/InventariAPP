@@ -18,11 +18,11 @@ const variants: Record<BtnVariant, string> = {
   accent: 'bg-accent text-accent-foreground hover:bg-accent/80',
 }
 
-export function Btn({ children, variant = 'primary', size = 'md', onClick, className = '', disabled = false }: {
-  children: ReactNode; variant?: BtnVariant; size?: BtnSize; onClick?: () => void; className?: string; disabled?: boolean
+export function Btn({ children, variant = 'primary', size = 'md', type = 'button', onClick, className = '', disabled = false }: {
+  children: ReactNode; variant?: BtnVariant; size?: BtnSize; type?: 'button' | 'submit' | 'reset'; onClick?: () => void; className?: string; disabled?: boolean
 }) {
   return (
-    <button onClick={onClick} disabled={disabled}
+    <button type={type} onClick={onClick} disabled={disabled}
       className={`inline-flex items-center justify-center gap-2 font-medium transition-all duration-150 cursor-pointer shrink-0 min-h-[44px] ${sizes[size]} ${variants[variant]} ${disabled ? 'opacity-40 cursor-not-allowed' : ''} ${className}`}>
       {children}
     </button>
