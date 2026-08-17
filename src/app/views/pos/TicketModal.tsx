@@ -7,14 +7,23 @@ import { Btn } from '../../components/shared/Button'
 import { PdfPreviewModal } from '../../components/shared/PdfPreviewModal'
 import { buildTicketText, generateTicketPdf, saleToTicketData, PAYMENT_LABELS, PAYMENT_STYLES } from '../../lib/ticket'
 import { formatUTC6DateTime } from '../../lib/dates'
+import { SettingsService } from '../../services/settings.service'
 import type { Sale } from '../../types'
 
 export function TicketModal({ sale, onClose }: { sale: Sale; onClose: () => void }) {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
-  const data = saleToTicketData(sale)
+  const [ticketConfig, setTicketConfig] = useState<{ encabezado?: string; pie?: string; mostrar_iva?: boolean }>({})
+  const data = saleToTicketData(sale, ticketConfig)
 
   useEffect(() => {
     document.body.style.overflow = 'hidden'
+    SettingsService.getSettings()
+      .then(d => setTicketConfig({
+        encabezado: d.settings.ticket_encabezado,
+        pie: d.settings.ticket_pie,
+        mostrar_iva: d.settings.ticket_mostrar_iva,
+      }))
+      .catch(() => {})
     return () => {
       document.body.style.overflow = ''
       if (pdfUrl) URL.revokeObjectURL(pdfUrl)
@@ -29,7 +38,8 @@ export function TicketModal({ sale, onClose }: { sale: Sale; onClose: () => void
   }
 
   const sendEmail = () => {
-    const subject = `Ticket ${data.folio} - Abarrotes El Roble`
+    const storeName = data.encabezado?.[0] || 'Abarrotes El Roble'
+    const subject = `Ticket ${data.folio} - ${storeName}`
     const body = buildTicketText(data)
     window.location.href = 'mailto:?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body)
     toast.success('Abriendo cliente de correo...')

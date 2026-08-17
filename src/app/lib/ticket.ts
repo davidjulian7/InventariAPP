@@ -27,6 +27,9 @@ export interface TicketData {
   monto_pagado?: number
   adeudo?: number
   created_at?: string
+  encabezado?: string[]
+  pie?: string
+  mostrar_iva?: boolean
 }
 
 export function ticketFilename(folio: string): string {
@@ -34,23 +37,25 @@ export function ticketFilename(folio: string): string {
 }
 
 export function buildTicketText(t: TicketData): string {
+  const header = t.encabezado?.length ? t.encabezado : ['ABARROTES EL ROBLE', 'Calle Principal 45, CDMX']
   const lines = [
-    'ABARROTES EL ROBLE',
-    'Calle Principal 45, CDMX',
+    ...header,
     formatUTC6DateTime(t.created_at),
     `Ticket ${t.folio}`,
     '--------------------------------',
     ...t.items.map(it => `${it.nombre} x${it.qty}\t$${(it.precio * it.qty).toFixed(2)}`),
     '--------------------------------',
     `Subtotal:\t$${t.subtotal.toFixed(2)}`,
-    `IVA 16%:\t$${t.iva.toFixed(2)}`,
-    `TOTAL:\t$${t.total.toFixed(2)}`,
   ]
+  if (t.mostrar_iva !== false) {
+    lines.push(`IVA 16%:\t$${t.iva.toFixed(2)}`)
+  }
+  lines.push(`TOTAL:\t$${t.total.toFixed(2)}`)
   if ((t.adeudo ?? 0) > 0) {
     lines.push(`Pago recibido:\t$${(t.monto_pagado ?? 0).toFixed(2)}`)
     lines.push(`ADEUDO PENDIENTE:\t$${t.adeudo.toFixed(2)}`)
   }
-  lines.push('', 'Gracias por su compra')
+  lines.push('', t.pie || 'Gracias por su compra')
   return lines.join('\n')
 }
 
@@ -60,16 +65,19 @@ export async function generateTicketPdf(t: TicketData): Promise<{ doc: any; file
   const pw = doc.internal.pageSize.getWidth()
   const ml = 20
   let y = 18
+  const header = t.encabezado?.length ? t.encabezado : ['ABARROTES EL ROBLE', 'Calle Principal 45, CDMX']
 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(14)
-  doc.text('ABARROTES EL ROBLE', pw / 2, y, { align: 'center' })
+  doc.text(header[0] || 'ABARROTES EL ROBLE', pw / 2, y, { align: 'center' })
   y += 7
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(10)
-  doc.text('Calle Principal 45, CDMX', pw / 2, y, { align: 'center' })
-  y += 5
+  for (const line of header.slice(1)) {
+    doc.text(line, pw / 2, y, { align: 'center' })
+    y += 5
+  }
   doc.text(formatUTC6DateTime(t.created_at), pw / 2, y, { align: 'center' })
   y += 5
   doc.text(`Ticket ${t.folio}`, pw / 2, y, { align: 'center' })
@@ -91,9 +99,12 @@ export async function generateTicketPdf(t: TicketData): Promise<{ doc: any; file
   doc.text('Subtotal', ml, y)
   doc.text(`$${t.subtotal.toFixed(2)}`, pw - ml, y, { align: 'right' })
   y += 6
-  doc.text('IVA 16%', ml, y)
-  doc.text(`$${t.iva.toFixed(2)}`, pw - ml, y, { align: 'right' })
-  y += 7
+  if (t.mostrar_iva !== false) {
+    doc.text('IVA 16%', ml, y)
+    doc.text(`$${t.iva.toFixed(2)}`, pw - ml, y, { align: 'right' })
+    y += 6
+  }
+  y += 1
 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(13)
@@ -118,7 +129,7 @@ export async function generateTicketPdf(t: TicketData): Promise<{ doc: any; file
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
-  doc.text('Gracias por su compra', pw / 2, y, { align: 'center' })
+  doc.text(t.pie || 'Gracias por su compra', pw / 2, y, { align: 'center' })
 
   return { doc, filename: ticketFilename(t.folio) }
 }
@@ -132,7 +143,7 @@ export function saleToTicketData(sale: {
   monto_pagado?: number
   adeudo?: number
   created_at?: string
-}): TicketData {
+}, opts?: { encabezado?: string; pie?: string; mostrar_iva?: boolean }): TicketData {
   const subtotal = sale.subtotal ?? 0
   const iva = sale.iva ?? 0
   const total = sale.total
@@ -146,5 +157,8 @@ export function saleToTicketData(sale: {
     monto_pagado: montoPagado,
     adeudo: sale.adeudo ?? Math.max(0, total - montoPagado),
     created_at: sale.created_at,
+    encabezado: opts?.encabezado ? opts.encabezado.split('\n').filter(Boolean) : undefined,
+    pie: opts?.pie || undefined,
+    mostrar_iva: opts?.mostrar_iva,
   }
 }

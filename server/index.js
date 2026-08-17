@@ -7,6 +7,9 @@ import salesRouter from './routes/sales.js'
 import reportsRouter from './routes/reports.js'
 import suppliersRouter from './routes/suppliers.js'
 import aiRouter from './routes/ai.js'
+import settingsRouter from './routes/settings.js'
+import usersRouter from './routes/users.js'
+import notificationsRouter from './routes/notifications.js'
 
 const PORT = process.env.PORT || 4000
 const SESSION_DAYS = 30
@@ -89,6 +92,9 @@ app.use('/api/sales', requireAuth, salesRouter)
 app.use('/api/reports', requireAuth, reportsRouter)
 app.use('/api/suppliers', requireAuth, suppliersRouter)
 app.use('/api/ai', requireAuth, aiRouter)
+app.use('/api/settings', requireAuth, settingsRouter)
+app.use('/api/users', requireAuth, usersRouter)
+app.use('/api/notifications', requireAuth, notificationsRouter)
 
 app.use((_req, res) => {
   res.status(404).json({ error: 'Ruta no encontrada' })

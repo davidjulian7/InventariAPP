@@ -1,76 +1,81 @@
-import { useState, useRef, useEffect } from 'react'
-import { Sparkles, Send, RefreshCw, TrendingUp, AlertTriangle, Star, Zap, Bot } from 'lucide-react'
+﻿import { useState, useRef, useEffect } from 'react'
+import { Sparkles, Send, RefreshCw, TrendingUp, AlertTriangle, Star, Zap } from 'lucide-react'
 import { useBreakpoint } from '../../hooks/useBreakpoint'
-import { Btn } from '../../components/shared/Button'
 import { BottomSheet } from '../../components/shared/BottomSheet'
+import { useAuth } from '../../contexts/AuthContext'
+import { AIService } from '../../services/ai.service'
 
 const initAiMessages = [
   { role: 'assistant' as const, content: 'Hola! Soy tu asistente IA. Puedo analizar ventas, detectar tendencias, alertarte sobre el inventario y darte recomendaciones. En que te ayudo?' },
-  { role: 'user' as const, content: 'Cuanto vendi hoy?' },
-  { role: 'assistant' as const, content: 'Ventas del dia:\n\nHoy generaste $12,450 con 67 transacciones. Ticket promedio $185.82.\n\nEsto es +8.3% vs el lunes pasado. Mejor hora: 1pm-2pm con $2,340.' },
-  { role: 'user' as const, content: 'Que debo reabastecer urgentemente?' },
-  { role: 'assistant' as const, content: 'Reabastecimiento urgente:\n\nAgotados: Sabritas Original 45g - 0 uds.\n\nStock bajo:\n- Leche Lala 1L - 12 uds. (min. 15)\n- Arroz La Merced - 8 uds. (min. 12)\n- Detergente Ariel - 3 uds. (min. 8)\n\nLa Leche Lala es prioridad alta por su alta rotacion.' },
 ]
 
-const aiInsights = [
-  { titulo: 'Ventas al alza', desc: '+8.3% vs semana anterior', icon: TrendingUp, color: 'text-green-600' },
-  { titulo: '4 en riesgo', desc: 'Requieren reabastecimiento', icon: AlertTriangle, color: 'text-amber-600' },
-  { titulo: 'Bebidas lideran', desc: '35% del total de ventas', icon: Star, color: 'text-primary' },
-  { titulo: 'Proyeccion mes', desc: '$380,000 estimado', icon: Zap, color: 'text-blue-600' },
-]
+interface AIInsight {
+  titulo: string
+  desc: string
+  tipo: string
+}
 
-function InsightsList() {
+const insightStyles: Record<string, { Icon: any; color: string }> = {
+  trending_up: { Icon: TrendingUp, color: 'text-green-600' },
+  alert: { Icon: AlertTriangle, color: 'text-amber-600' },
+  star: { Icon: Star, color: 'text-primary' },
+  zap: { Icon: Zap, color: 'text-blue-600' },
+}
+
+function InsightsList({ insights }: { insights: AIInsight[] }) {
   return (
     <div className="space-y-3 p-4">
-      {aiInsights.map((insight, i) => {
-        const Icon = insight.icon
-        return (
-          <div key={i} className="flex gap-3 p-3 bg-muted rounded-xl">
-            <Icon size={16} className={insight.color + ' shrink-0 mt-0.5'} />
-            <div><div className="text-sm font-bold text-foreground">{insight.titulo}</div><div className="text-xs text-muted-foreground">{insight.desc}</div></div>
-          </div>
-        )
-      })}
-      <div className="bg-foreground rounded-xl p-4">
-        <div className="text-xs font-bold text-white/60 mb-3 uppercase tracking-wide">Resumen</div>
-        {[
-          ['Ventas hoy', '$12,450', 'text-secondary'],
-          ['Inventario', '8 productos', 'text-white'],
-          ['Stock bajo', '4 alertas', 'text-amber-400'],
-          ['Margen', '24.8%', 'text-secondary']
-        ].map(([l, v, c]) => (
-          <div key={l} className="flex justify-between py-1.5 border-b border-white/8 last:border-0">
-            <span className="text-white/55 text-xs">{l}</span>
-            <span className={'text-xs font-bold ' + c}>{v}</span>
-          </div>
-        ))}
-      </div>
+      {insights.length === 0 ? (
+        <div className="text-sm text-muted-foreground p-3">AÃºn no hay insights disponibles.</div>
+      ) : (
+        insights.map((insight, i) => {
+          const style = insightStyles[insight.tipo] || insightStyles.star
+          const Icon = style.Icon
+          return (
+            <div key={i} className="flex gap-3 p-3 bg-muted rounded-xl">
+              <Icon size={16} className={style.color + ' shrink-0 mt-0.5'} />
+              <div><div className="text-sm font-bold text-foreground">{insight.titulo}</div><div className="text-xs text-muted-foreground">{insight.desc}</div></div>
+            </div>
+          )
+        })
+      )}
     </div>
   )
 }
 
 export function AIAssistantScreen() {
   const { isMobile } = useBreakpoint()
+  const { user } = useAuth()
   const [messages, setMessages] = useState(initAiMessages)
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [showInsights, setShowInsights] = useState(false)
+  const [insights, setInsights] = useState<AIInsight[]>([])
   const chatRef = useRef<HTMLDivElement>(null)
+  const storeId = user?.store_id || 0
+
+  useEffect(() => {
+    AIService.getInsights(storeId).then(setInsights).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const quickQueries = ['Cuanto vendi hoy?', 'Que reabastecer?', 'Mas rentables?', 'Tendencias?']
 
-  const sendMessage = (text: string) => {
-    if (!text.trim()) return
-    setMessages(prev => [...prev, { role: 'user', content: text }])
+  const sendMessage = async (text: string) => {
+    if (!text.trim() || loading) return
+    const next = [...messages, { role: 'user' as const, content: text }]
+    setMessages(next)
     setInput('')
     setLoading(true)
-    setTimeout(() => {
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: 'Analizando los datos de tu negocio... Basandome en el historial de ventas e inventario, tu negocio muestra una tendencia positiva. Te gustaria que profundice en algun aspecto especifico?'
-      }])
+    try {
+      const reply = await AIService.sendMessage(next, storeId)
+      setMessages(prev => [...prev, { role: 'assistant', content: reply }])
+    } catch (err: any) {
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Hubo un problema al consultar al asistente. Intenta de nuevo.' }])
+      console.error(err)
+    } finally {
       setLoading(false)
-    }, 1400)
+    }
   }
 
   useEffect(() => {
@@ -138,7 +143,7 @@ export function AIAssistantScreen() {
       <div style={{ height: 'calc(100vh - 56px - 64px)' }} className="flex flex-col">
         {chatPanel}
         <BottomSheet isOpen={showInsights} onClose={() => setShowInsights(false)} title="Insights IA">
-          <InsightsList />
+          <InsightsList insights={insights} />
         </BottomSheet>
       </div>
     )
@@ -152,7 +157,7 @@ export function AIAssistantScreen() {
           <div className="flex items-center gap-2 p-4 border-b border-border/50">
             <Sparkles size={15} className="text-primary" /><h3 className="font-bold text-foreground text-sm">Insights IA</h3>
           </div>
-          <InsightsList />
+          <InsightsList insights={insights} />
         </div>
         <div className="bg-card rounded-2xl border border-border/50 p-4 shadow-sm">
           <h3 className="font-bold text-foreground text-sm mb-3">Historial de chats</h3>

@@ -13,6 +13,7 @@ create table if not exists stores (
   direccion text,
   telefono text,
   email text,
+  web text,
   logo_url text,
   created_at text not null default (datetime('now')),
   updated_at text not null default (datetime('now'))
@@ -155,6 +156,31 @@ create table if not exists notifications (
 
 create index if not exists idx_notifications_user on notifications(user_id);
 
+create table if not exists store_settings (
+  store_id integer primary key references stores(id) on delete cascade,
+  ai_api_key text,
+  ai_model text default 'gemini-1.5-flash',
+  ai_temperature real not null default 0.7,
+  ai_system_prompt text,
+  ticket_encabezado text,
+  ticket_pie text default 'Gracias por su compra',
+  ticket_mostrar_iva integer not null default 1,
+  notif_stock_bajo integer not null default 1,
+  notif_resumen_diario integer not null default 1,
+  notif_agotados integer not null default 0,
+  notif_ia integer not null default 1,
+  billing_plan text default 'Básico',
+  billing_ciclo text default 'mensual',
+  billing_email text,
+  billing_tarjeta text,
+  billing_proxima_cobro text,
+  ai_usage_date text,
+  ai_usage_count integer not null default 0,
+  updated_at text not null default (datetime('now'))
+);
+
+create index if not exists idx_store_settings_store on store_settings(store_id);
+
 -- ============================================================
 -- TRIGGERS
 -- ============================================================
@@ -185,4 +211,11 @@ create trigger if not exists trg_products_updated
   when old.updated_at = new.updated_at
   begin
     update products set updated_at = datetime('now') where id = old.id;
+  end;
+
+create trigger if not exists trg_store_settings_updated
+  after update on store_settings for each row
+  when old.updated_at = new.updated_at
+  begin
+    update store_settings set updated_at = datetime('now') where store_id = old.store_id;
   end;

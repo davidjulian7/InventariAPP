@@ -3,7 +3,22 @@ import type { AIMessage } from '../types'
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || ''
 const GEMINI_MODEL = 'gemini-1.5-flash'
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`
+
+let cachedAIConfig: { apiKey: string; model: string } | null = null
+
+async function getAIConfig(): Promise<{ apiKey: string; model: string }> {
+  if (cachedAIConfig) return cachedAIConfig
+  try {
+    const data = await apiFetch<{ settings: { ai_api_key?: string; ai_model?: string } }>('/settings')
+    cachedAIConfig = {
+      apiKey: data.settings?.ai_api_key || GEMINI_API_KEY,
+      model: data.settings?.ai_model || GEMINI_MODEL,
+    }
+  } catch {
+    cachedAIConfig = { apiKey: GEMINI_API_KEY, model: GEMINI_MODEL }
+  }
+  return cachedAIConfig
+}
 
 const SYSTEM_PROMPT = `Eres un asistente experto en retail y abarrotes que ayuda a dueños de tiendas a gestionar su negocio. Hablas español. 
 Analizas datos de ventas, inventario y proveedores para dar recomendaciones accionables.
@@ -31,11 +46,12 @@ function buildContext(ctx: StoreContext): string {
 }
 
 async function callGemini(prompt: string): Promise<string> {
-  if (!GEMINI_API_KEY) {
-    return 'Configura VITE_GEMINI_API_KEY en tu archivo .env para usar el asistente IA.'
+  const { apiKey, model } = await getAIConfig()
+  if (!apiKey) {
+    return 'Configura una API Key de Gemini en Configuración > Config. IA, o define VITE_GEMINI_API_KEY en tu archivo .env.'
   }
 
-  const res = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -56,8 +72,31 @@ async function callGemini(prompt: string): Promise<string> {
   return data?.candidates?.[0]?.content?.parts?.[0]?.text || 'No pude generar una respuesta.'
 }
 
+export interface AIUsage {
+  used: number
+  limit: number
+  remaining: number
+  plan: string
+  planLabel: string
+}
+
+async function consume(): Promise<AIUsage & { ok: boolean }> {
+  return apiFetch<AIUsage & { ok: boolean }>('/ai/usage', { method: 'POST' })
+}
+
+function limitMessage(u: { limit: number; planLabel: string }): string {
+  return `Hoy ya usaste tus ${u.limit} solicitudes del plan ${u.planLabel}. El límite se reinicia mañana. Si necesitas más, mejora tu plan en Configuración > Pagos.`
+}
+
 export class AIService {
+  static async getUsage(): Promise<AIUsage> {
+    return apiFetch<AIUsage>('/ai/usage')
+  }
+
   static async sendMessage(messages: AIMessage[], storeId: number): Promise<string> {
+    const usage = await consume()
+    if (!usage.ok) return limitMessage(usage)
+
     const ctx = await fetchContext(storeId)
     const context = buildContext(ctx)
     const history = messages.map(m => `${m.role === 'user' ? 'Usuario' : 'Asistente'}: ${m.content}`).join('\n')
@@ -66,9 +105,17 @@ export class AIService {
   }
 
   static async getInsights(storeId: number): Promise<{ titulo: string; desc: string; tipo: string }[]> {
-    if (!GEMINI_API_KEY) {
+    const usage = await consume()
+    if (!usage.ok) {
       return [
-        { titulo: 'Configura IA', desc: 'Agrega VITE_GEMINI_API_KEY en .env para obtener insights.', tipo: 'alert' },
+        { titulo: 'Límite diario alcanzado', desc: limitMessage(usage), tipo: 'alert' },
+      ]
+    }
+
+    const { apiKey } = await getAIConfig()
+    if (!apiKey) {
+      return [
+        { titulo: 'Configura IA', desc: 'Agrega una API Key en Configuración > Config. IA para obtener insights.', tipo: 'alert' },
         { titulo: 'Demo activa', desc: 'Los datos se guardan en la base de datos local (SQLite).', tipo: 'star' },
       ]
     }

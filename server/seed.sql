@@ -5,6 +5,9 @@
 insert into stores (id, nombre, direccion, telefono, email) values
   (1, 'Abarrotes El Roble', 'Calle Principal 45, Col. Centro, CDMX 06000', '55-1234-5678', 'contacto@elroble.mx');
 
+insert into store_settings (store_id, ticket_encabezado, ticket_pie, billing_email, billing_tarjeta, billing_proxima_cobro) values
+  (1, 'ABARROTES EL ROBLE\nCalle Principal 45, CDMX', 'Gracias por su compra', 'facturacion@elroble.mx', '•••• 4242', date('now', 'start of month', '+1 month'));
+
 insert into categories (id, nombre, color, store_id) values
   (1, 'Bebidas',   '#0EA5E9', 1),
   (2, 'Lácteos',   '#F59E0B', 1),

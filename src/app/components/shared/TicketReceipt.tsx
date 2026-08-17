@@ -2,11 +2,14 @@ import type { TicketData } from '../../lib/ticket'
 import { formatUTC6DateTime } from '../../lib/dates'
 
 export function TicketReceipt({ data }: { data: TicketData }) {
+  const header = data.encabezado?.length ? data.encabezado : ['ABARROTES EL ROBLE', 'Calle Principal 45, CDMX']
   return (
     <div className="bg-muted rounded-xl p-4 font-mono text-xs text-foreground">
       <div className="text-center mb-3">
-        <div className="font-bold text-sm">ABARROTES EL ROBLE</div>
-        <div className="text-muted-foreground">Calle Principal 45, CDMX</div>
+        <div className="font-bold text-sm">{header[0]}</div>
+        {header.slice(1).map((line, i) => (
+          <div key={i} className="text-muted-foreground">{line}</div>
+        ))}
         <div className="text-muted-foreground">{formatUTC6DateTime(data.created_at)}</div>
         <div className="mt-1 font-semibold">Ticket {data.folio}</div>
       </div>
@@ -19,7 +22,9 @@ export function TicketReceipt({ data }: { data: TicketData }) {
       ))}
       <div className="border-t border-dashed border-border my-2" />
       <div className="flex justify-between"><span>Subtotal</span><span>${data.subtotal.toFixed(2)}</span></div>
-      <div className="flex justify-between"><span>IVA 16%</span><span>${data.iva.toFixed(2)}</span></div>
+      {data.mostrar_iva !== false && (
+        <div className="flex justify-between"><span>IVA 16%</span><span>${data.iva.toFixed(2)}</span></div>
+      )}
       <div className="flex justify-between font-bold border-t border-dashed border-border mt-1 pt-1"><span>TOTAL</span><span>${data.total.toFixed(2)}</span></div>
       {(data.adeudo ?? 0) > 0 && (
         <>
@@ -27,6 +32,7 @@ export function TicketReceipt({ data }: { data: TicketData }) {
           <div className="flex justify-between font-bold text-red-500 border-t border-dashed border-border mt-1 pt-1"><span>ADEUDO</span><span>${data.adeudo!.toFixed(2)}</span></div>
         </>
       )}
+      <div className="text-center mt-3">{data.pie || 'Gracias por su compra'}</div>
     </div>
   )
 }

@@ -12,6 +12,8 @@ db.exec('PRAGMA foreign_keys = ON')
 db.exec(readFileSync(path.join(__dirname, 'schema.sql'), 'utf8'))
 
 ensureSalesColumn(db)
+ensureStoresWebColumn(db)
+ensureStoreSettings(db)
 
 seedIfEmpty(db)
 
@@ -21,6 +23,30 @@ function ensureSalesColumn(database) {
   database.exec('alter table sales add column monto_pagado real not null default 0')
   database.exec('update sales set monto_pagado = total')
   console.log('[db] Columna sales.monto_pagado agregada')
+}
+
+function ensureStoresWebColumn(database) {
+  const cols = database.prepare('pragma table_info(stores)').all().map(c => c.name)
+  if (cols.includes('web')) return
+  database.exec('alter table stores add column web text')
+  console.log('[db] Columna stores.web agregada')
+}
+
+function ensureStoreSettings(database) {
+  const rows = database.prepare('select id from stores').all()
+  const insert = database.prepare(`
+    insert or ignore into store_settings (store_id)
+    values (?)
+  `)
+  for (const row of rows) insert.run(row.id)
+
+  const cols = database.prepare('pragma table_info(store_settings)').all().map(c => c.name)
+  if (!cols.includes('ai_usage_date')) {
+    database.exec('alter table store_settings add column ai_usage_date text')
+  }
+  if (!cols.includes('ai_usage_count')) {
+    database.exec('alter table store_settings add column ai_usage_count integer not null default 0')
+  }
 }
 
 function seedIfEmpty(database) {

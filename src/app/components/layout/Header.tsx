@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useLocation } from 'react-router'
-import { Search, Bell, X, Menu, ShoppingBag, ChevronDown } from 'lucide-react'
+import { Search, X, Menu, ShoppingBag, ChevronDown } from 'lucide-react'
 import { NAV_ITEMS } from '../../lib/constants'
+import { NotificationsBell } from './NotificationsDropdown'
 
 const moduleTitles: Record<string, string> = Object.fromEntries(
   NAV_ITEMS.map(n => [n.id, n.label])
@@ -30,9 +31,7 @@ export function Header({ isMobile, onMenuOpen }: { isMobile: boolean; onMenuOpen
               <h1 className="text-sm font-bold text-foreground">{moduleTitles[activeModule]}</h1>
             </div>
             <button onClick={() => setShowSearch(true)} className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center text-muted-foreground cursor-pointer min-w-[36px]"><Search size={17} /></button>
-            <button className="relative w-9 h-9 rounded-xl bg-muted flex items-center justify-center text-muted-foreground cursor-pointer min-w-[36px]">
-              <Bell size={17} /><span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-card" />
-            </button>
+            <NotificationsBell mobile />
             <button onClick={onMenuOpen} className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center cursor-pointer min-w-[36px]"><Menu size={18} className="text-foreground" /></button>
           </>
         )}
@@ -48,9 +47,7 @@ export function Header({ isMobile, onMenuOpen }: { isMobile: boolean; onMenuOpen
         <input placeholder="Buscar productos, ventas..." className="w-full pl-9 pr-4 py-2 rounded-xl bg-muted border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all" />
       </div>
       <div className="flex items-center gap-2">
-        <button className="relative w-9 h-9 rounded-xl bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer">
-          <Bell size={17} /><span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-card" />
-        </button>
+        <NotificationsBell />
         <div className="flex items-center gap-2.5 pl-3 border-l border-border ml-1 cursor-pointer">
           <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center shadow-sm"><span className="text-white text-xs font-bold">JR</span></div>
           <div className="hidden md:block">

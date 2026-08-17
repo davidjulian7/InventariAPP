@@ -131,3 +131,53 @@ export interface CashFlow {
   costoVendido: number
   flujoNeto: number
 }
+
+export interface Store {
+  id: number
+  nombre: string
+  rfc?: string
+  direccion?: string
+  telefono?: string
+  email?: string
+  web?: string
+  logo_url?: string
+}
+
+export interface StoreUser {
+  id: number
+  email: string
+  nombre: string
+  rol: string
+  store_id: number
+  active: boolean
+  created_at?: string
+  updated_at?: string
+}
+
+export interface StoreSettings {
+  ai_api_key: string
+  ai_model: string
+  ai_temperature: number
+  ai_system_prompt: string
+  ticket_encabezado: string
+  ticket_pie: string
+  ticket_mostrar_iva: boolean
+  notif_stock_bajo: boolean
+  notif_resumen_diario: boolean
+  notif_agotados: boolean
+  notif_ia: boolean
+  billing_plan: string
+  billing_ciclo: string
+  billing_email: string
+  billing_tarjeta: string
+  billing_proxima_cobro: string
+}
+
+export interface AppNotification {
+  id: number
+  title: string
+  descripcion?: string
+  tipo?: string
+  leida: boolean
+  created_at: string
+}

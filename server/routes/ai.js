@@ -3,6 +3,54 @@ import db from '../db.js'
 
 const router = Router()
 
+const PLAN_LIMITS = { gratis: 10, basico: 50, pro: 200, premium: 1000 }
+const PLAN_LABELS = { gratis: 'Gratis', basico: 'Básico', pro: 'Pro', premium: 'Premium' }
+
+function planKey(plan) {
+  const p = String(plan || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  if (p.includes('gratis')) return 'gratis'
+  if (p.includes('bas')) return 'basico'
+  if (p.includes('premium')) return 'premium'
+  if (p.includes('pro')) return 'pro'
+  return 'basico'
+}
+
+function usageState(storeId) {
+  const s = db.prepare('select * from store_settings where store_id = ?').get(storeId) || {}
+  const today = new Date().toISOString().slice(0, 10)
+  const key = planKey(s.billing_plan)
+  const used = s.ai_usage_date === today ? Number(s.ai_usage_count) || 0 : 0
+  return { key, limit: PLAN_LIMITS[key], label: PLAN_LABELS[key], used, today }
+}
+
+router.get('/usage', (req, res) => {
+  const { key, limit, label, used } = usageState(req.user.store_id)
+  res.json({
+    used,
+    limit,
+    remaining: Math.max(0, limit - used),
+    plan: key,
+    planLabel: label,
+  })
+})
+
+router.post('/usage', (req, res) => {
+  const { key, limit, label, used, today } = usageState(req.user.store_id)
+  if (used >= limit) {
+    return res.json({ ok: false, reason: 'limit', used, limit, remaining: 0, plan: key, planLabel: label })
+  }
+  db.prepare('update store_settings set ai_usage_date = ?, ai_usage_count = ? where store_id = ?')
+    .run(today, used + 1, req.user.store_id)
+  res.json({
+    ok: true,
+    used: used + 1,
+    limit,
+    remaining: limit - (used + 1),
+    plan: key,
+    planLabel: label,
+  })
+})
+
 router.get('/context', (req, res) => {
   const storeId = req.user.store_id
   const products = db.prepare('select * from products where store_id = ? and active = 1').all(storeId)
