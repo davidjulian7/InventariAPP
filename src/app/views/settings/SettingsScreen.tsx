@@ -14,6 +14,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { SettingsService } from '../../services/settings.service'
 import { UserService } from '../../services/user.service'
 import { AIService, type AIUsage } from '../../services/ai.service'
+import { ROLE_LABELS } from '../../lib/constants'
 import type { Store, StoreSettings, StoreUser } from '../../types'
 
 const storeSchema = z.object({
@@ -26,13 +27,6 @@ const storeSchema = z.object({
 })
 
 type StoreForm = z.infer<typeof storeSchema>
-
-const ROLE_LABELS: Record<string, string> = {
-  admin: 'Administrador',
-  cajero: 'Cajero',
-  almacenista: 'Almacenista',
-  gerente: 'Gerente',
-}
 
 type PlanId = 'gratis' | 'basico' | 'pro' | 'premium'
 

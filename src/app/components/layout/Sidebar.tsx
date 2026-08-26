@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from 'react-router'
 import { ShoppingBag, LogOut, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { NAV_ITEMS, APP_NAME, DEFAULT_STORE_NAME } from '../../lib/constants'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
+import { useTodaySummary } from '../../hooks/useTodaySummary'
+import { formatCurrency } from '../../lib/utils'
 
 export function Sidebar({ onLogout, collapsed, onToggleCollapse }: {
   onLogout: () => void; collapsed: boolean; onToggleCollapse: () => void
@@ -11,6 +13,7 @@ export function Sidebar({ onLogout, collapsed, onToggleCollapse }: {
   const location = useLocation()
   const activeModule = location.pathname.slice(1) || 'dashboard'
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const todayTotal = useTodaySummary()
 
   return (
     <aside className={`h-screen bg-foreground flex flex-col shrink-0 transition-all duration-300 ${collapsed ? 'w-16' : 'w-[228px]'}`}>
@@ -41,7 +44,7 @@ export function Sidebar({ onLogout, collapsed, onToggleCollapse }: {
         {!collapsed && (
           <div className="bg-white/6 rounded-xl px-3 py-2.5 mb-2">
             <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-secondary rounded-full" /><span className="text-white/60 text-xs">Negocio abierto</span></div>
-            <div className="text-white text-sm font-bold mt-0.5">$12,450 hoy</div>
+            <div className="text-white text-sm font-bold mt-0.5">{todayTotal !== null ? `${formatCurrency(todayTotal)} hoy` : '— hoy'}</div>
           </div>
         )}
         <button onClick={onToggleCollapse} className="w-full flex items-center justify-center py-2 rounded-xl text-white/35 hover:text-white hover:bg-white/8 cursor-pointer min-h-[44px] transition-all">

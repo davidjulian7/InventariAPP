@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from 'react-router'
 import { ShoppingBag, LogOut, X } from 'lucide-react'
 import { NAV_ITEMS, APP_NAME, DEFAULT_STORE_NAME } from '../../lib/constants'
 import { ConfirmDialog } from '../shared/ConfirmDialog'
+import { useTodaySummary } from '../../hooks/useTodaySummary'
+import { formatCurrency } from '../../lib/utils'
 
 export function MobileDrawer({ isOpen, onClose, onLogout }: {
   isOpen: boolean; onClose: () => void; onLogout: () => void
@@ -11,6 +13,7 @@ export function MobileDrawer({ isOpen, onClose, onLogout }: {
   const location = useLocation()
   const activeModule = location.pathname.slice(1) || 'dashboard'
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const todayTotal = useTodaySummary()
 
   if (!isOpen) return null
 
@@ -42,7 +45,7 @@ export function MobileDrawer({ isOpen, onClose, onLogout }: {
         <div className="px-3 pb-6 border-t border-white/8 pt-3">
           <div className="bg-white/6 rounded-xl px-3 py-2.5 mb-2">
             <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-secondary rounded-full" /><span className="text-white/60 text-xs">Negocio abierto</span></div>
-            <div className="text-white text-sm font-bold mt-0.5">$12,450 hoy</div>
+            <div className="text-white text-sm font-bold mt-0.5">{todayTotal !== null ? `${formatCurrency(todayTotal)} hoy` : '— hoy'}</div>
           </div>
           <button onClick={() => setShowLogoutConfirm(true)} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white/45 hover:text-white hover:bg-white/8 text-sm cursor-pointer min-h-[44px] transition-colors">
             <LogOut size={17} />Cerrar sesión

@@ -20,3 +20,10 @@ export const NAV_ITEMS: { id: string; label: string; icon: LucideIcon }[] = [
 
 export const IVA_RATE = 0.16
 export const TAX_NAME = 'IVA 16%'
+
+export const ROLE_LABELS: Record<string, string> = {
+  admin: 'Administrador',
+  cajero: 'Cajero',
+  almacenista: 'Almacenista',
+  gerente: 'Gerente',
+}

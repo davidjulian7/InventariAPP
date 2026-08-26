@@ -1,4 +1,5 @@
 import { useState, useEffect, type ReactNode } from 'react'
+import { useSearchParams } from 'react-router'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -114,7 +115,8 @@ export function InventoryScreen() {
   const { isMobile } = useBreakpoint()
   const { user } = useAuth()
   const { products, loading, error, createProduct, updateProduct, deleteProduct, refresh } = useProducts(user?.store_id ?? 1)
-  const [search, setSearch] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [search, setSearch] = useState(() => searchParams.get('q') ?? '')
   const [view, setView] = useState<'table' | 'cards'>(isMobile ? 'cards' : 'table')
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Product | null>(null)
@@ -127,6 +129,13 @@ export function InventoryScreen() {
   const [pageSize, setPageSize] = useState(10)
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
   const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (searchParams.get('q')) {
+      setSearchParams(prev => { const next = new URLSearchParams(prev); next.delete('q'); return next }, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const form = useForm<ProductForm>({
     resolver: zodResolver(productSchema),
